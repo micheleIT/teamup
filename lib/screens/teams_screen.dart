@@ -1,0 +1,145 @@
+import 'package:flutter/material.dart';
+import '../app_state.dart';
+import '../models/team.dart';
+import '../utils/team_generator.dart';
+
+class TeamsScreen extends StatefulWidget {
+  final AppState state;
+  const TeamsScreen({super.key, required this.state});
+
+  @override
+  State<TeamsScreen> createState() => _TeamsScreenState();
+}
+
+class _TeamsScreenState extends State<TeamsScreen> {
+  late List<Team> _teams;
+
+  @override
+  void initState() {
+    super.initState();
+    _roll();
+  }
+
+  void _roll() {
+    setState(() {
+      _teams = generateTeams(
+        widget.state.players,
+        widget.state.teamCount,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _teamColors(context, _teams.length);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${widget.state.selectedSport.icon}  Teams',
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shuffle),
+            tooltip: 'Shuffle again',
+            onPressed: _roll,
+          ),
+        ],
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _teams.length,
+        itemBuilder: (context, i) {
+          final team = _teams[i];
+          final color = colors[i % colors.length];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            color: color.withValues(alpha: 0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: color, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Team header
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(11)),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        team.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${team.players.length} player${team.players.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                // Players
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    children: [
+                      for (final player in team.players)
+                        ListTile(
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: color.withValues(alpha: 0.25),
+                            child: Text(
+                              player.name[0].toUpperCase(),
+                              style: TextStyle(
+                                  color: color, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(player.name),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _roll,
+        icon: const Icon(Icons.shuffle),
+        label: const Text('Reshuffle'),
+      ),
+    );
+  }
+
+  static List<Color> _teamColors(BuildContext context, int count) {
+    // A palette of visually distinct, accessible-ish colors for teams
+    const palette = [
+      Color(0xFF1565C0), // blue
+      Color(0xFFC62828), // red
+      Color(0xFF2E7D32), // green
+      Color(0xFFEF6C00), // orange
+      Color(0xFF6A1B9A), // purple
+      Color(0xFF00838F), // teal
+      Color(0xFF558B2F), // lime/olive
+      Color(0xFF4527A0), // deep purple
+    ];
+    if (count <= palette.length) return palette.sublist(0, count);
+    // Cycle if somehow more teams than colors
+    return [for (var i = 0; i < count; i++) palette[i % palette.length]];
+  }
+}
