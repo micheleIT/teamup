@@ -32,11 +32,37 @@ Paint _line(Color c, double width) => Paint()
   ..style = PaintingStyle.stroke
   ..strokeWidth = width;
 
-// ── Soccer ────────────────────────────────────────────────────────────────────
+/// Base painter that transparently rotates the canvas 90° clockwise in portrait
+/// mode so all subclasses only ever implement a landscape drawing.
+abstract class _OrientedPainter extends CustomPainter {
+  const _OrientedPainter();
 
-class _SoccerPainter extends CustomPainter {
+  /// Implement your court drawing here, always assuming [size.width >= size.height].
+  void paintLandscape(Canvas canvas, Size size);
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.height > size.width) {
+      // Portrait → rotate 90° clockwise and swap dimensions
+      canvas.save();
+      canvas.translate(size.width, 0);
+      canvas.rotate(pi / 2);
+      paintLandscape(canvas, Size(size.height, size.width));
+      canvas.restore();
+    } else {
+      paintLandscape(canvas, size);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ── Soccer ────────────────────────────────────────────────────────────────────
+
+class _SoccerPainter extends _OrientedPainter {
+  @override
+  void paintLandscape(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
@@ -117,16 +143,13 @@ class _SoccerPainter extends CustomPainter {
       );
     }
   }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 // ── Volleyball ────────────────────────────────────────────────────────────────
 
-class _VolleyballPainter extends CustomPainter {
+class _VolleyballPainter extends _OrientedPainter {
   @override
-  void paint(Canvas canvas, Size size) {
+  void paintLandscape(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
@@ -193,16 +216,13 @@ class _VolleyballPainter extends CustomPainter {
       sL,
     );
   }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 // ── Basketball ────────────────────────────────────────────────────────────────
 
-class _BasketballPainter extends CustomPainter {
+class _BasketballPainter extends _OrientedPainter {
   @override
-  void paint(Canvas canvas, Size size) {
+  void paintLandscape(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
@@ -285,16 +305,13 @@ class _BasketballPainter extends CustomPainter {
       lW,
     );
   }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 // ── Custom / neutral ──────────────────────────────────────────────────────────
 
-class _NeutralPainter extends CustomPainter {
+class _NeutralPainter extends _OrientedPainter {
   @override
-  void paint(Canvas canvas, Size size) {
+  void paintLandscape(Canvas canvas, Size size) {
     // Subtle diagonal grid
     final w = size.width;
     final h = size.height;

@@ -1,0 +1,89 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'          # trigger on any tag like v1.0.0, v2.3.1-beta, …
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write   # needed to create GitHub releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Flutter ──────────────────────────────────────────────────────────
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ── Keystore ─────────────────────────────────────────────────────────
+      # Decode the base64-encoded keystore stored as a repository secret.
+      # Required secrets:
+      #   KEYSTORE_BASE64      – base64 of your .jks / .keystore file
+      #   KEYSTORE_PASSWORD    – store password
+      #   KEY_ALIAS            – key alias inside the keystore
+      #   KEY_PASSWORD         – key password
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+
+      # ── Build ─────────────────────────────────────────────────────────────
+      # Derive a numeric build number from the tag (e.g. v1.2.3 → 10203).
+      # Falls back to the run number when triggered manually without a semver tag.
+      - name: Resolve version info
+        id: version
+        run: |
+          REF="${{ github.ref_name }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          # Strip leading 'v'
+          VERSION_NAME="${TAG#v}"
+          # Build number: convert M.m.p → M*10000 + m*100 + p, fallback to run number
+          if [[ "$VERSION_NAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+            BUILD_NUMBER=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))
+          else
+            BUILD_NUMBER=${{ github.run_number }}
+          fi
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER"  >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        env:
+          KEYSTORE_PATH: release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          flutter build apk --release \
+            --build-name="${{ steps.version.outputs.version_name }}" \
+            --build-number="${{ steps.version.outputs.build_number }}" \
+            --dart-define=BUILD_TAG="${{ github.ref_name }}"
+
+      - name: Rename APK
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             teamup-${{ steps.version.outputs.version_name }}.apk
+
+      # ── Release ───────────────────────────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: TeamUp ${{ steps.version.outputs.version_name }}
+          generate_release_notes: true   # auto-generates changelog from commits
+          files: teamup-${{ steps.version.outputs.version_name }}.apk
