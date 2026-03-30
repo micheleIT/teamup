@@ -97,4 +97,4 @@ To enable, go to **Settings → Pages → Source → GitHub Actions** in your re
 
 ## License
 
-MIT
+[GPL-3.0](LICENSE)

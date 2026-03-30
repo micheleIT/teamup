@@ -6,20 +6,29 @@ class AppState extends ChangeNotifier {
   final List<Player> _players = [];
   Sport _selectedSport = Sport.soccer;
   int _teamCount = 2;
+  bool _wheelEnabled = false;
 
   List<Player> get players => List.unmodifiable(_players);
   Sport get selectedSport => _selectedSport;
   int get teamCount => _teamCount;
+  bool get wheelEnabled => _wheelEnabled;
 
   bool get canGenerate => _players.length >= _teamCount;
+
+  void setWheelEnabled(bool value) {
+    _wheelEnabled = value;
+    notifyListeners();
+  }
 
   void addPlayer(String name) {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    _players.add(Player(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: trimmed,
-    ));
+    _players.add(
+      Player(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: trimmed,
+      ),
+    );
     notifyListeners();
   }
 

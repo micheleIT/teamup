@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/sport.dart';
+import 'settings_screen.dart';
 import 'teams_screen.dart';
+import 'wheel_assignment_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
@@ -17,6 +19,16 @@ class HomeScreen extends StatelessWidget {
             title: const Text('TeamUp'),
             centerTitle: true,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Settings',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(state: state),
+                  ),
+                ),
+              ),
               if (state.players.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.delete_sweep_outlined),
@@ -28,11 +40,13 @@ class HomeScreen extends StatelessWidget {
                         title: const Text('Clear all players?'),
                         actions: [
                           TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel')),
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
                           TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Clear')),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Clear'),
+                          ),
                         ],
                       ),
                     );
@@ -70,17 +84,17 @@ class HomeScreen extends StatelessWidget {
                           final player = state.players[i];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
                               child: Text(
                                 player.name.isNotEmpty
                                     ? player.name[0].toUpperCase()
                                     : '?',
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onPrimaryContainer,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -90,12 +104,16 @@ class HomeScreen extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 20),
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 20,
+                                  ),
                                   tooltip: 'Rename',
-                                  onPressed: () =>
-                                      _showRenameDialog(context, player.id,
-                                          player.name),
+                                  onPressed: () => _showRenameDialog(
+                                    context,
+                                    player.id,
+                                    player.name,
+                                  ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.close, size: 20),
@@ -146,7 +164,9 @@ class HomeScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TeamsScreen(state: state),
+        builder: (_) => state.wheelEnabled
+            ? WheelAssignmentScreen(state: state)
+            : TeamsScreen(state: state),
       ),
     );
   }
@@ -180,8 +200,9 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
@@ -197,7 +218,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _showRenameDialog(
-      BuildContext context, String id, String currentName) async {
+    BuildContext context,
+    String id,
+    String currentName,
+  ) async {
     final controller = TextEditingController(text: currentName);
     final formKey = GlobalKey<FormState>();
 
@@ -223,8 +247,9 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
@@ -300,7 +325,8 @@ class _TeamCountRow extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
-            onPressed: state.players.isNotEmpty &&
+            onPressed:
+                state.players.isNotEmpty &&
                     state.teamCount < state.players.length
                 ? () => state.setTeamCount(state.teamCount + 1)
                 : null,
