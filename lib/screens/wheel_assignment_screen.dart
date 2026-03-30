@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../models/player.dart';
 import '../models/team.dart';
 import '../utils/team_generator.dart';
+import '../widgets/court_background.dart';
 import '../widgets/fortune_wheel.dart';
 import 'teams_screen.dart';
 
@@ -143,95 +144,103 @@ class _WheelAssignmentScreenState extends State<WheelAssignmentScreen> {
         title: Text('${widget.state.selectedSport.icon}  Wheel of Fortune'),
         centerTitle: true,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // ── Progress bar & label ───────────────────────────────────────
-          _ProgressHeader(
-            step: _step,
-            total: _assignments.length,
-            current: current,
-            phase: _phase,
-          ),
+          CourtBackground(sport: widget.state.selectedSport),
+          Column(
+            children: [
+              // ── Progress bar & label ───────────────────────────────────────
+              _ProgressHeader(
+                step: _step,
+                total: _assignments.length,
+                current: current,
+                phase: _phase,
+              ),
 
-          // ── Wheel ─────────────────────────────────────────────────────
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Stack(
-                    alignment: Alignment.topCenter,
+              // ── Wheel ─────────────────────────────────────────────────────
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          Positioned.fill(
+                            child: FortuneWheel(
+                              key: _wheelKey,
+                              labels: _remaining.map((p) => p.name).toList(),
+                              segmentColors: _wheelSegmentColors,
+                            ),
+                          ),
+                          // Fixed pointer at top
+                          const _Pointer(),
+                          // Reveal overlay
+                          if (_phase == _Phase.revealing && current != null)
+                            _RevealOverlay(assignment: current),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Spin button ────────────────────────────────────────────────
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Positioned.fill(
-                        child: FortuneWheel(
-                          key: _wheelKey,
-                          labels: _remaining.map((p) => p.name).toList(),
-                          segmentColors: _wheelSegmentColors,
+                      if (current != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Next up → '),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: current.teamColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Team ${current.teamNumber}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      FilledButton.icon(
+                        onPressed: _phase == _Phase.ready ? _spin : null,
+                        icon: const Icon(Icons.casino_outlined),
+                        label: Text(switch (_phase) {
+                          _Phase.spinning => 'Spinning…',
+                          _Phase.revealing => 'Assigned!',
+                          _Phase.ready => 'Spin!',
+                        }),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
                         ),
                       ),
-                      // Fixed pointer at top
-                      const _Pointer(),
-                      // Reveal overlay
-                      if (_phase == _Phase.revealing && current != null)
-                        _RevealOverlay(assignment: current),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
-
-          // ── Spin button ────────────────────────────────────────────────
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (current != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('Next up → '),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: current.teamColor,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Team ${current.teamNumber}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  FilledButton.icon(
-                    onPressed: _phase == _Phase.ready ? _spin : null,
-                    icon: const Icon(Icons.casino_outlined),
-                    label: Text(switch (_phase) {
-                      _Phase.spinning => 'Spinning…',
-                      _Phase.revealing => 'Assigned!',
-                      _Phase.ready => 'Spin!',
-                    }),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
         ],
       ),
