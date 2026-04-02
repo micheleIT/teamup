@@ -2,23 +2,25 @@ import 'package:flutter/material.dart';
 import 'app_state.dart';
 import 'screens/home_screen.dart';
 
-void main() {
-  runApp(const TeamUpApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final state = AppState();
+  await state.statsService.load();
+  runApp(TeamUpApp(state: state));
 }
 
 class TeamUpApp extends StatefulWidget {
-  const TeamUpApp({super.key});
+  final AppState state;
+  const TeamUpApp({super.key, required this.state});
 
   @override
   State<TeamUpApp> createState() => _TeamUpAppState();
 }
 
 class _TeamUpAppState extends State<TeamUpApp> {
-  final _state = AppState();
-
   @override
   void dispose() {
-    _state.dispose();
+    widget.state.dispose();
     super.dispose();
   }
 
@@ -37,7 +39,7 @@ class _TeamUpAppState extends State<TeamUpApp> {
         useMaterial3: true,
         brightness: Brightness.dark,
       ),
-      home: HomeScreen(state: _state),
+      home: HomeScreen(state: widget.state),
     );
   }
 }

@@ -3,6 +3,7 @@ import '../app_state.dart';
 import '../models/team.dart';
 import '../utils/team_generator.dart';
 import '../widgets/court_background.dart';
+import 'record_result_sheet.dart';
 import 'wheel_assignment_screen.dart';
 
 class TeamsScreen extends StatefulWidget {
@@ -37,6 +38,25 @@ class _TeamsScreenState extends State<TeamsScreen> {
     });
   }
 
+  Future<void> _recordResult(BuildContext context) async {
+    final record = await showRecordResultSheet(
+      context: context,
+      sport: widget.state.selectedSport,
+      teams: _teams,
+      allPlayers: widget.state.players,
+    );
+    if (record == null) return;
+    await widget.state.statsService.addRecord(record);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Result recorded!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _reshuffle(BuildContext context) {
     if (widget.state.wheelEnabled) {
       Navigator.pushReplacement(
@@ -59,6 +79,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
         title: Text('${widget.state.selectedSport.icon}  Teams'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.emoji_events_outlined),
+            tooltip: 'Record result',
+            onPressed: () => _recordResult(context),
+          ),
           IconButton(
             icon: const Icon(Icons.shuffle),
             tooltip: 'Shuffle again',

@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'models/player.dart';
 import 'models/sport.dart';
+import 'services/stats_service.dart';
 
 class AppState extends ChangeNotifier {
+  final statsService = StatsService();
   final List<Player> _players = [];
   Sport _selectedSport = Sport.soccer;
   int _teamCount = 2;
