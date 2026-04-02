@@ -11,7 +11,8 @@ class StatsService extends ChangeNotifier {
   final List<GameRecord> _records = [];
 
   List<GameRecord> get records => List.unmodifiable(
-    _records..sort((a, b) => b.playedAt.compareTo(a.playedAt)),
+    List<GameRecord>.of(_records)
+      ..sort((a, b) => b.playedAt.compareTo(a.playedAt)),
   );
 
   /// Load persisted records. Call once from main() or app init.
