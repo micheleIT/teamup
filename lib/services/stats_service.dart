@@ -19,9 +19,24 @@ class StatsService extends ChangeNotifier {
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_prefsKey) ?? [];
+    final loadedRecords = <GameRecord>[];
+    var removedInvalidEntries = false;
+
+    for (final entry in raw) {
+      try {
+        loadedRecords.add(GameRecord.fromJsonString(entry));
+      } catch (_) {
+        removedInvalidEntries = true;
+      }
+    }
+
     _records
       ..clear()
-      ..addAll(raw.map(GameRecord.fromJsonString));
+      ..addAll(loadedRecords);
+
+    if (removedInvalidEntries) {
+      await _persist();
+    }
     notifyListeners();
   }
 
