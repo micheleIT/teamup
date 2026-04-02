@@ -21,7 +21,7 @@ class _StatsScreenState extends State<StatsScreen>
   @override
   void initState() {
     super.initState();
-    // Overall + one tab per sport actually played
+    // Overall + one tab for each defined sport
     _tabs = TabController(length: Sport.values.length + 1, vsync: this);
   }
 
