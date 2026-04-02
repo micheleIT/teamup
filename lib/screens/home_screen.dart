@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/sport.dart';
 import 'settings_screen.dart';
+import 'stats_screen.dart';
 import 'teams_screen.dart';
 import 'wheel_assignment_screen.dart';
 
@@ -19,6 +20,17 @@ class HomeScreen extends StatelessWidget {
             title: const Text('TeamUp'),
             centerTitle: true,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.bar_chart_outlined),
+                tooltip: 'Statistics',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        StatsScreen(statsService: state.statsService),
+                  ),
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 tooltip: 'Settings',
