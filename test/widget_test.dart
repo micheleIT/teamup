@@ -9,6 +9,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final state = AppState();
+    addTearDown(state.dispose);
     await tester.pumpWidget(TeamUpApp(state: state));
     // Home screen should render without crashing
     expect(find.text('TeamUp'), findsOneWidget);
