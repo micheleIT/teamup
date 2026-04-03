@@ -53,9 +53,14 @@ class AppState extends ChangeNotifier {
     await prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates);
   }
 
-  void addPlayer(String name) {
+  bool addPlayer(String name) {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return false;
+    if (_players.any(
+      (p) => p.name.toLowerCase() == trimmed.toLowerCase(),
+    )) {
+      return false;
+    }
     _players.add(
       Player(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -63,6 +68,7 @@ class AppState extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    return true;
   }
 
   void removePlayer(String id) {
@@ -70,13 +76,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void renamePlayer(String id, String newName) {
+  bool renamePlayer(String id, String newName) {
     final trimmed = newName.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return false;
     final idx = _players.indexWhere((p) => p.id == id);
-    if (idx == -1) return;
+    if (idx == -1) return false;
+    if (_players.any(
+      (p) => p.id != id && p.name.toLowerCase() == trimmed.toLowerCase(),
+    )) {
+      return false;
+    }
     _players[idx] = _players[idx].copyWith(name: trimmed);
     notifyListeners();
+    return true;
   }
 
   void selectSport(Sport sport) {
