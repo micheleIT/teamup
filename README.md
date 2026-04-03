@@ -15,10 +15,10 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 - **Configurable team count** — pick 2 … N teams with a simple +/− stepper
 - **Fair shuffling** — players are distributed as evenly as possible across teams
 - **Wheel of Fortune mode** — animated wheel-spin assignment as an alternative to instant shuffle
-- **Reshuffle at any time** — one tap to generate a completely new draw
-- **Record game results** — log wins, losses, and draws right after a match
+- **Reshuffle at any time** — one tap to generate a completely new draw; prompts to record the current result first (opt-out in Settings)
+- **Record game results** — log wins, losses, and draws right after a match; each result can only be recorded once per team arrangement
 - **Player statistics** — view aggregated per-player stats (games played, wins, losses, draws) across all recorded games
-- **Settings screen** — toggle Wheel of Fortune mode and other preferences
+- **Settings screen** — toggle Wheel of Fortune mode, auto-ask for results, and other preferences
 - **Light & dark theme** — follows the system preference automatically
 - **PWA-ready** — installable from the browser, works offline
 

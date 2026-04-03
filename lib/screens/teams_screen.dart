@@ -21,6 +21,7 @@ class TeamsScreen extends StatefulWidget {
 
 class _TeamsScreenState extends State<TeamsScreen> {
   late List<Team> _teams;
+  bool _resultRecorded = false;
 
   @override
   void initState() {
@@ -35,10 +36,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
   void _roll() {
     setState(() {
       _teams = generateTeams(widget.state.players, widget.state.teamCount);
+      _resultRecorded = false;
     });
   }
 
   Future<void> _recordResult(BuildContext context) async {
+    if (_resultRecorded) return;
     final record = await showRecordResultSheet(
       context: context,
       sport: widget.state.selectedSport,
@@ -47,6 +50,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     );
     if (record == null) return;
     await widget.state.statsService.addRecord(record);
+    setState(() => _resultRecorded = true);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -58,7 +62,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   }
 
   Future<void> _reshuffle(BuildContext context) async {
-    if (widget.state.autoAskForResults) {
+    if (widget.state.autoAskForResults && !_resultRecorded) {
       await _recordResult(context);
     }
     if (!context.mounted) return;
@@ -84,9 +88,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.emoji_events_outlined),
-            tooltip: 'Record result',
-            onPressed: () => _recordResult(context),
+            icon: Icon(
+              _resultRecorded
+                  ? Icons.emoji_events
+                  : Icons.emoji_events_outlined,
+            ),
+            tooltip: _resultRecorded ? 'Result already recorded' : 'Record result',
+            onPressed: _resultRecorded ? null : () => _recordResult(context),
           ),
           IconButton(
             icon: const Icon(Icons.shuffle),
