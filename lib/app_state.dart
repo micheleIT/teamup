@@ -1,32 +1,56 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'models/player.dart';
 import 'models/sport.dart';
 import 'services/stats_service.dart';
 
 class AppState extends ChangeNotifier {
+  static const _prefKeyNotifyDevUpdates = 'notify_dev_updates';
+
   final statsService = StatsService();
   final List<Player> _players = [];
   Sport _selectedSport = Sport.soccer;
   int _teamCount = 2;
   bool _wheelEnabled = false;
+  bool _notifyDevUpdates = false;
   bool _autoAskForResults = true;
 
   List<Player> get players => List.unmodifiable(_players);
   Sport get selectedSport => _selectedSport;
   int get teamCount => _teamCount;
   bool get wheelEnabled => _wheelEnabled;
+  bool get notifyDevUpdates => _notifyDevUpdates;
   bool get autoAskForResults => _autoAskForResults;
 
   bool get canGenerate => _players.length >= _teamCount;
+
+  /// Load persisted settings. Call once from main() before runApp.
+  Future<void> loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _notifyDevUpdates = prefs.getBool(_prefKeyNotifyDevUpdates) ?? false;
+  }
 
   void setWheelEnabled(bool value) {
     _wheelEnabled = value;
     notifyListeners();
   }
 
+  void setNotifyDevUpdates(bool value) {
+    _notifyDevUpdates = value;
+    notifyListeners();
+    // Persistence is fire-and-forget: the UI updates immediately while the
+    // write happens asynchronously in the background.
+    _saveSettings();
+  }
+
   void setAutoAskForResults(bool value) {
     _autoAskForResults = value;
     notifyListeners();
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates);
   }
 
   void addPlayer(String name) {
