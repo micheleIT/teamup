@@ -4,6 +4,7 @@ Randomly generate fair, balanced teams from a list of players — right before t
 
 Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA**.
 
+[![Tests](https://github.com/micheleIT/teamup/actions/workflows/test.yml/badge.svg)](https://github.com/micheleIT/teamup/actions/workflows/test.yml)
 [![Deploy to GitHub Pages](https://github.com/micheleIT/teamup/actions/workflows/pages.yml/badge.svg)](https://github.com/micheleIT/teamup/actions/workflows/pages.yml)
 
 ---
@@ -17,8 +18,9 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 - **Wheel of Fortune mode** — animated wheel-spin assignment as an alternative to instant shuffle
 - **Reshuffle at any time** — one tap to generate a completely new draw; prompts to record the current result first (opt-out in Settings)
 - **Record game results** — log wins, losses, and draws right after a match; each result can only be recorded once per team arrangement
-- **Player statistics** — view aggregated per-player stats (games played, wins, losses, draws) across all recorded games
-- **Settings screen** — toggle Wheel of Fortune mode, auto-ask for results, and other preferences
+- **Player statistics** — view aggregated per-player stats (games played, wins, losses, draws) with a **Today / All Time** toggle and per-sport breakdown
+- **In-app update notifications** — background check against GitHub Releases; opt into dev-version notifications in Settings
+- **Settings screen** — toggle Wheel of Fortune mode, auto-ask for results, and dev-release notifications
 - **Light & dark theme** — follows the system preference automatically
 - **PWA-ready** — installable from the browser, works offline
 
@@ -40,11 +42,14 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 | Dart | 3.11.4 |
 | Brave / Chromium | any recent |
 
-**Key pub dependencies**
+### Key dependencies
 
 | Package | Purpose |
 |---------|---------|
-| `shared_preferences` | Local persistence for game records & statistics |
+| `shared_preferences` | Persist game records, statistics & settings |
+| `http` | Fetch GitHub Releases API for update checks |
+| `package_info_plus` | Read the app's current version at runtime |
+| `url_launcher` | Open release URLs in the system browser |
 
 ### Run in the browser
 
@@ -74,41 +79,66 @@ flutter build apk --release
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 lib/
-├── main.dart                      # App entry point & MaterialApp setup
-├── app_state.dart                 # ChangeNotifier state (players, sport, team count, wheel flag)
+├── main.dart                        # App entry point & MaterialApp setup
+├── app_state.dart                   # ChangeNotifier (players, sport, team count, settings)
 ├── models/
-│   ├── game_record.dart           # GameRecord / GameTeam / GamePlayer value objects
-│   ├── player.dart                # Player value object
-│   ├── player_stats.dart          # Aggregated per-player statistics
-│   ├── sport.dart                 # Sport enum with presets
-│   └── team.dart                  # Team value object
+│   ├── game_record.dart             # GameRecord / GameTeam / GamePlayer value objects
+│   ├── player.dart                  # Player value object
+│   ├── player_stats.dart            # Aggregated per-player statistics model
+│   ├── sport.dart                   # Sport enum with per-sport presets
+│   └── team.dart                    # Team value object
 ├── services/
-│   └── stats_service.dart         # Persist game records & compute player stats (shared_preferences)
+│   ├── stats_service.dart           # Persist game records & compute player stats
+│   └── update_service.dart          # GitHub Releases update checker
 ├── utils/
-│   └── team_generator.dart        # Shuffle & even distribution logic
+│   └── team_generator.dart          # Shuffle & even-distribution logic
 ├── widgets/
-│   ├── court_background.dart      # Sport-specific court background widget
-│   └── fortune_wheel.dart         # Animated Wheel-of-Fortune widget
+│   ├── court_background.dart        # Sport-specific court background widget
+│   └── fortune_wheel.dart           # Animated Wheel-of-Fortune widget
 └── screens/
-    ├── home_screen.dart           # Player list, sport selector, team count stepper
-    ├── teams_screen.dart          # Colour-coded team result cards
+    ├── home_screen.dart             # Player list, sport selector, team count stepper
+    ├── teams_screen.dart            # Colour-coded team result cards
     ├── wheel_assignment_screen.dart # Animated wheel-spin team assignment
-    ├── record_result_sheet.dart   # Bottom sheet for recording game results
-    ├── stats_screen.dart          # Per-player statistics view
-    └── settings_screen.dart       # App settings (Wheel of Fortune toggle, etc.)
+    ├── record_result_sheet.dart     # Bottom sheet for recording game results
+    ├── stats_screen.dart            # Per-player statistics (Today / All Time toggle)
+    └── settings_screen.dart         # Wheel of Fortune, auto-ask & update settings
+
+test/
+├── widget_test.dart                 # Smoke test for the app widget tree
+├── teams_screen_test.dart           # Teams screen widget tests
+├── stats_service_test.dart          # Unit tests for stats computation & period filter
+└── update_service_test.dart         # Unit tests for version comparison & update checks
 ```
+
+---
+
+## Running tests
+
+```bash
+flutter test
+```
+
+The test suite covers:
+
+- **Stats computation** — wins / losses / draws aggregation, `Today` vs. `All Time` period filter, sport filter, combined filters
+- **Update checker** — semantic version comparison, dev-version detection, GitHub API integration (mocked)
+- **Widget smoke tests** — app starts and core screens render without errors
 
 ---
 
 ## CI / CD
 
+### Tests (`test.yml`)
+
+Every pull request targeting `main` runs the full unit and widget test suite. To make this a required check, enable **"Require status checks to pass before merging"** for the `main` branch under **Settings → Branches** and select the `test` job.
+
 ### Web deployment (`pages.yml`)
 
-Every push to `main` triggers a GitHub Actions workflow that:
+Every push to `main` triggers a workflow that:
 
 1. Installs Flutter (with caching)
 2. Runs `flutter build web --release`
@@ -118,12 +148,19 @@ To enable, go to **Settings → Pages → Source → GitHub Actions** in your re
 
 ### Android release (`release.yml`)
 
-Pushing a version tag (e.g. `v1.2.3`) triggers a second workflow that:
+Pushing a version tag (e.g. `v1.2.3`) triggers a workflow that:
 
 1. Builds a signed release APK using keystore credentials stored as repository secrets
 2. Creates a GitHub Release with the APK attached and an auto-generated changelog
 
-Required repository secrets: `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `KEYSTORE_PASSWORD`.
+Required repository secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `KEYSTORE_BASE64` | Base64-encoded `.jks` / `.keystore` file |
+| `KEY_ALIAS` | Key alias inside the keystore |
+| `KEY_PASSWORD` | Key password |
+| `KEYSTORE_PASSWORD` | Store password |
 
 ---
 

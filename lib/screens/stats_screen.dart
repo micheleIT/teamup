@@ -6,6 +6,8 @@ import '../models/game_record.dart';
 import '../models/sport.dart';
 import '../services/stats_service.dart';
 
+enum _StatsPeriod { today, allTime }
+
 class StatsScreen extends StatefulWidget {
   final StatsService statsService;
   const StatsScreen({super.key, required this.statsService});
@@ -17,6 +19,15 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  _StatsPeriod _period = _StatsPeriod.allTime;
+
+  DateTime? get _since {
+    if (_period == _StatsPeriod.today) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day);
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -62,14 +73,47 @@ class _StatsScreenState extends State<StatsScreen>
                 ),
             ],
           ),
-          body: TabBarView(
-            controller: _tabs,
+          body: Column(
             children: [
-              _StatsTab(stats: widget.statsService.computeStats(), sport: null),
-              ...Sport.values.map(
-                (s) => _StatsTab(
-                  stats: widget.statsService.computeStats(sport: s),
-                  sport: s,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SegmentedButton<_StatsPeriod>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _StatsPeriod.today,
+                      label: Text('Today'),
+                      icon: Icon(Icons.today_outlined),
+                    ),
+                    ButtonSegment(
+                      value: _StatsPeriod.allTime,
+                      label: Text('All Time'),
+                      icon: Icon(Icons.history),
+                    ),
+                  ],
+                  selected: {_period},
+                  onSelectionChanged: (s) => setState(() => _period = s.first),
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: [
+                    _StatsTab(
+                      stats: widget.statsService.computeStats(since: _since),
+                      sport: null,
+                      period: _period,
+                    ),
+                    ...Sport.values.map(
+                      (s) => _StatsTab(
+                        stats: widget.statsService.computeStats(
+                          sport: s,
+                          since: _since,
+                        ),
+                        sport: s,
+                        period: _period,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -99,8 +143,13 @@ class _StatsScreenState extends State<StatsScreen>
 class _StatsTab extends StatelessWidget {
   final List<PlayerStats> stats;
   final Sport? sport;
+  final _StatsPeriod period;
 
-  const _StatsTab({required this.stats, required this.sport});
+  const _StatsTab({
+    required this.stats,
+    required this.sport,
+    required this.period,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +165,13 @@ class _StatsTab extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              sport == null
-                  ? 'No games recorded yet.\nRecord a result from the teams screen.'
-                  : 'No ${sport!.label} games recorded yet.',
+              period == _StatsPeriod.today
+                  ? (sport == null
+                        ? 'No games recorded today.'
+                        : 'No ${sport!.label} games recorded today.')
+                  : (sport == null
+                        ? 'No games recorded yet.\nRecord a result from the teams screen.'
+                        : 'No ${sport!.label} games recorded yet.'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.grey),
             ),
