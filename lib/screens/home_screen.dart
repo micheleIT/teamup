@@ -45,10 +45,16 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(seconds: 10),
         action: SnackBarAction(
           label: 'View release',
-          onPressed: () => launchUrl(
-            Uri.parse(releaseUrl),
-            mode: LaunchMode.externalApplication,
-          ),
+          onPressed: () async {
+            final uri = Uri.parse(releaseUrl);
+            if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not open $releaseUrl')),
+                );
+              }
+            }
+          },
         ),
       ),
     );

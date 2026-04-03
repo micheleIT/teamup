@@ -49,7 +49,7 @@ class UpdateService {
           tagName.startsWith('v') ? tagName.substring(1) : tagName;
       final releaseUrl = data['html_url'] as String?;
 
-      final isNewer = _isNewerVersion(latestVersion, currentVersion);
+      final isNewer = isNewerVersion(latestVersion, currentVersion);
       return UpdateCheckResult(
         isUpdateAvailable: isNewer,
         latestVersion: latestVersion,
@@ -64,10 +64,7 @@ class UpdateService {
   ///
   /// Both strings are expected to be in `MAJOR.MINOR.PATCH` format.
   /// Non-numeric segments are treated as 0.
-  bool isNewerVersion(String latest, String current) =>
-      _isNewerVersion(latest, current);
-
-  bool _isNewerVersion(String latest, String current) {
+  bool isNewerVersion(String latest, String current) {
     final l = _parseParts(latest);
     final c = _parseParts(current);
     for (var i = 0; i < 3; i++) {
