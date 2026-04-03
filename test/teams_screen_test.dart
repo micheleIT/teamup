@@ -27,13 +27,13 @@ Widget _buildScreen(AppState state) {
 }
 
 // Complete the record-result sheet: select the first team option and save.
+// Assumes the caller has already triggered the sheet to appear (e.g. via tap).
 Future<void> _completeRecordSheet(WidgetTester tester) async {
-  // The sheet uses OutlinedButton for each team; the main screen has none.
+  await tester.pumpAndSettle(); // wait for sheet slide-in animation to finish
   await tester.tap(find.byType(OutlinedButton).first);
-  await tester.pump();
+  await tester.pump(); // rebuild with winner selected
   await tester.tap(find.text('Save Result'));
-  await tester.pump(); // dismiss sheet + trigger setState
-  await tester.pump(const Duration(seconds: 3)); // snackbar animation settles
+  await tester.pumpAndSettle(); // dismiss + addRecord + setState + snackbar
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,8 +64,6 @@ void main() {
 
       // Open sheet and save a result
       await tester.tap(find.byTooltip('Record result'));
-      await tester.pump();
-      await tester.pump(); // let sheet animate in
       await _completeRecordSheet(tester);
 
       // Button should now show the filled icon and be disabled
@@ -85,8 +83,6 @@ void main() {
 
         // Record a result
         await tester.tap(find.byTooltip('Record result'));
-        await tester.pump();
-        await tester.pump();
         await _completeRecordSheet(tester);
 
         // Reshuffle — autoAskForResults is true but _resultRecorded is true,
@@ -130,8 +126,6 @@ void main() {
 
         // Record manually first
         await tester.tap(find.byTooltip('Record result'));
-        await tester.pump();
-        await tester.pump();
         await _completeRecordSheet(tester);
 
         // Reshuffle — no sheet expected
