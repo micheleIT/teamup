@@ -123,7 +123,7 @@ Pushing a version tag (e.g. `v1.2.3`) triggers a second workflow that:
 1. Builds a signed release APK using keystore credentials stored as repository secrets
 2. Creates a GitHub Release with the APK attached and an auto-generated changelog
 
-Required repository secrets: `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `STORE_PASSWORD`.
+Required repository secrets: `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `KEYSTORE_PASSWORD`.
 
 ---
 
