@@ -115,11 +115,10 @@ class UpdateService {
 
         if (!isDevVersion(version)) continue;
 
-        final numericVersion = _stripDevSuffix(version);
-        if (!isNewerVersion(numericVersion, currentVersion)) continue;
+        if (!isNewerVersion(version, currentVersion)) continue;
 
         if (best == null ||
-            isNewerVersion(numericVersion, _stripDevSuffix(best.latestVersion ?? ''))) {
+            isNewerVersion(version, best.latestVersion ?? '')) {
           best = UpdateCheckResult(
             isUpdateAvailable: true,
             latestVersion: version,
@@ -137,8 +136,10 @@ class UpdateService {
 
   /// Returns `true` when [latest] is strictly greater than [current].
   ///
-  /// Both strings are expected to be in `MAJOR.MINOR.PATCH` format.
+  /// Both strings are expected to be in `MAJOR.MINOR.PATCH[.dev]` format.
   /// Non-numeric segments are treated as 0.
+  /// When numeric parts are equal, a stable release is considered newer than
+  /// a dev release (e.g. `1.0.0` is newer than `1.0.0.dev`).
   bool isNewerVersion(String latest, String current) {
     final l = _parseParts(latest);
     final c = _parseParts(current);
@@ -146,7 +147,8 @@ class UpdateService {
       if (l[i] > c[i]) return true;
       if (l[i] < c[i]) return false;
     }
-    return false;
+    // Numeric parts are equal: a stable release supersedes a dev release.
+    return !isDevVersion(latest) && isDevVersion(current);
   }
 
   /// Returns `true` if [version] contains a `.dev` suffix.
