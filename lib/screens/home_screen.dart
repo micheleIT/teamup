@@ -50,7 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not open $releaseUrl')),
+                  SnackBar(
+                  content: const Text(
+                    'Unable to open release page. Please check your browser settings or try again later.',
+                  ),
+                ),
                 );
               }
             }

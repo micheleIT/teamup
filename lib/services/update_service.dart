@@ -79,6 +79,6 @@ class UpdateService {
     while (parts.length < 3) {
       parts.add(0);
     }
-    return parts;
+    return parts.take(3).toList();
   }
 }
