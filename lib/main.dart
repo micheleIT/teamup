@@ -5,10 +5,7 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final state = AppState();
-  await Future.wait([
-    state.statsService.load(),
-    state.loadSettings(),
-  ]);
+  await Future.wait([state.statsService.load(), state.loadSettings()]);
   runApp(TeamUpApp(state: state));
 }
 
@@ -21,12 +18,6 @@ class TeamUpApp extends StatefulWidget {
 }
 
 class _TeamUpAppState extends State<TeamUpApp> {
-  @override
-  void dispose() {
-    widget.state.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
