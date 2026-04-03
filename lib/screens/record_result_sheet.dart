@@ -15,7 +15,6 @@ Future<GameRecord?> showRecordResultSheet({
   return showModalBottomSheet<GameRecord>(
     context: context,
     isScrollControlled: true,
-    useSafeArea: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -61,7 +60,8 @@ class _RecordResultSheetState extends State<_RecordResultSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom,
         left: 16,
         right: 16,
         top: 20,
