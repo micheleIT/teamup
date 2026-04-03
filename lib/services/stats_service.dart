@@ -65,11 +65,14 @@ class StatsService extends ChangeNotifier {
   // ── Stats computation ───────────────────────────────────────────────────────
 
   /// Returns per-player stats aggregated over [records] (all by default).
-  /// Optionally filter to a specific [sport].
-  List<PlayerStats> computeStats({Sport? sport}) {
-    final filtered = sport == null
-        ? _records
-        : _records.where((r) => r.sport == sport).toList();
+  /// Optionally filter to a specific [sport] and/or only include records
+  /// whose [GameRecord.playedAt] is on or after [since].
+  List<PlayerStats> computeStats({Sport? sport, DateTime? since}) {
+    final filtered = _records.where((r) {
+      if (sport != null && r.sport != sport) return false;
+      if (since != null && r.playedAt.isBefore(since)) return false;
+      return true;
+    }).toList();
 
     // Map playerId → mutable accumulators
     final Map<String, _Accumulator> acc = {};
