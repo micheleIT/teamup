@@ -24,6 +24,15 @@ class SettingsScreen extends StatelessWidget {
                 value: state.wheelEnabled,
                 onChanged: state.setWheelEnabled,
               ),
+              SwitchListTile(
+                secondary: const Icon(Icons.emoji_events_outlined),
+                title: const Text('Automatically ask for registering results'),
+                subtitle: const Text(
+                  'Ask to record the match result before shuffling new teams',
+                ),
+                value: state.autoAskForResults,
+                onChanged: state.setAutoAskForResults,
+              ),
               const Divider(),
             ],
           );

@@ -57,7 +57,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
     }
   }
 
-  void _reshuffle(BuildContext context) {
+  Future<void> _reshuffle(BuildContext context) async {
+    if (widget.state.autoAskForResults) {
+      await _recordResult(context);
+    }
+    if (!context.mounted) return;
     if (widget.state.wheelEnabled) {
       Navigator.pushReplacement(
         context,

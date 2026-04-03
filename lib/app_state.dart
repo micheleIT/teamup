@@ -9,16 +9,23 @@ class AppState extends ChangeNotifier {
   Sport _selectedSport = Sport.soccer;
   int _teamCount = 2;
   bool _wheelEnabled = false;
+  bool _autoAskForResults = true;
 
   List<Player> get players => List.unmodifiable(_players);
   Sport get selectedSport => _selectedSport;
   int get teamCount => _teamCount;
   bool get wheelEnabled => _wheelEnabled;
+  bool get autoAskForResults => _autoAskForResults;
 
   bool get canGenerate => _players.length >= _teamCount;
 
   void setWheelEnabled(bool value) {
     _wheelEnabled = value;
+    notifyListeners();
+  }
+
+  void setAutoAskForResults(bool value) {
+    _autoAskForResults = value;
     notifyListeners();
   }
 
