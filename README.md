@@ -2,7 +2,7 @@
 
 Randomly generate fair, balanced teams from a list of players — right before the game, no arguments needed.
 
-Built with **Flutter 3.41.2** · runs as an **Android app** and a **browser PWA**.
+Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA**.
 
 [![Deploy to GitHub Pages](https://github.com/micheleIT/teamup/actions/workflows/pages.yml/badge.svg)](https://github.com/micheleIT/teamup/actions/workflows/pages.yml)
 
@@ -36,7 +36,7 @@ Built with **Flutter 3.41.2** · runs as an **Android app** and a **browser PWA*
 
 | Tool | Version |
 |------|---------|
-| Flutter | 3.41.2 |
+| Flutter | 3.41.6 |
 | Dart | 3.11.4 |
 | Brave / Chromium | any recent |
 
