@@ -1,19 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_state.dart';
 import '../models/sport.dart';
+import '../services/update_service.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'teams_screen.dart';
 import 'wheel_assignment_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final AppState state;
-  const HomeScreen({super.key, required this.state});
+  final UpdateService? updateService;
+
+  const HomeScreen({super.key, required this.state, this.updateService});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  Future<void> _checkForUpdate() async {
+    final info = await PackageInfo.fromPlatform();
+    final service = widget.updateService ?? UpdateService();
+    final result = await service.checkForUpdate(info.version);
+
+    if (!mounted) return;
+    if (!result.isUpdateAvailable) return;
+
+    final version = result.latestVersion ?? '';
+    final releaseUrl =
+        result.releaseUrl ??
+        'https://github.com/micheleIT/teamup/releases/latest';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Version $version is available'),
+        duration: const Duration(seconds: 10),
+        action: SnackBarAction(
+          label: 'View release',
+          onPressed: () => launchUrl(
+            Uri.parse(releaseUrl),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: state,
+      listenable: widget.state,
       builder: (context, _) {
         return Scaffold(
           appBar: AppBar(
@@ -27,7 +71,7 @@ class HomeScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) =>
-                        StatsScreen(statsService: state.statsService),
+                        StatsScreen(statsService: widget.state.statsService),
                   ),
                 ),
               ),
@@ -37,11 +81,11 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SettingsScreen(state: state),
+                    builder: (_) => SettingsScreen(state: widget.state),
                   ),
                 ),
               ),
-              if (state.players.isNotEmpty)
+              if (widget.state.players.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.delete_sweep_outlined),
                   tooltip: 'Clear all players',
@@ -62,7 +106,7 @@ class HomeScreen extends StatelessWidget {
                         ],
                       ),
                     );
-                    if (ok == true) state.clearPlayers();
+                    if (ok == true) widget.state.clearPlayers();
                   },
                 ),
             ],
@@ -70,16 +114,16 @@ class HomeScreen extends StatelessWidget {
           body: Column(
             children: [
               // ── Sport selector ──────────────────────────────────────────
-              _SportSelector(state: state),
+              _SportSelector(state: widget.state),
               const Divider(height: 1),
 
               // ── Team count row ──────────────────────────────────────────
-              _TeamCountRow(state: state),
+              _TeamCountRow(state: widget.state),
               const Divider(height: 1),
 
               // ── Player list ─────────────────────────────────────────────
               Expanded(
-                child: state.players.isEmpty
+                child: widget.state.players.isEmpty
                     ? const Center(
                         child: Text(
                           'No players yet.\nTap + to add someone.',
@@ -89,11 +133,11 @@ class HomeScreen extends StatelessWidget {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: state.players.length,
+                        itemCount: widget.state.players.length,
                         separatorBuilder: (_, _) =>
                             const Divider(height: 1, indent: 56),
                         itemBuilder: (context, i) {
-                          final player = state.players[i];
+                          final player = widget.state.players[i];
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Theme.of(
@@ -131,7 +175,7 @@ class HomeScreen extends StatelessWidget {
                                   icon: const Icon(Icons.close, size: 20),
                                   tooltip: 'Remove',
                                   onPressed: () =>
-                                      state.removePlayer(player.id),
+                                      widget.state.removePlayer(player.id),
                                 ),
                               ],
                             ),
@@ -145,14 +189,14 @@ class HomeScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: FilledButton.icon(
-                    onPressed: state.canGenerate
+                    onPressed: widget.state.canGenerate
                         ? () => _generate(context)
                         : null,
                     icon: const Icon(Icons.shuffle),
                     label: Text(
-                      state.canGenerate
-                          ? 'Generate ${state.teamCount} Teams'
-                          : 'Need at least ${state.teamCount} players',
+                      widget.state.canGenerate
+                          ? 'Generate ${widget.state.teamCount} Teams'
+                          : 'Need at least ${widget.state.teamCount} players',
                     ),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
@@ -176,9 +220,9 @@ class HomeScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => state.wheelEnabled
-            ? WheelAssignmentScreen(state: state)
-            : TeamsScreen(state: state),
+        builder: (_) => widget.state.wheelEnabled
+            ? WheelAssignmentScreen(state: widget.state)
+            : TeamsScreen(state: widget.state),
       ),
     );
   }
@@ -204,7 +248,7 @@ class HomeScreen extends StatelessWidget {
                 (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
             onFieldSubmitted: (_) {
               if (formKey.currentState!.validate()) {
-                state.addPlayer(controller.text);
+                widget.state.addPlayer(controller.text);
                 Navigator.pop(ctx);
               }
             },
@@ -218,7 +262,7 @@ class HomeScreen extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                state.addPlayer(controller.text);
+                widget.state.addPlayer(controller.text);
                 Navigator.pop(ctx);
               }
             },
@@ -251,7 +295,7 @@ class HomeScreen extends StatelessWidget {
                 (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
             onFieldSubmitted: (_) {
               if (formKey.currentState!.validate()) {
-                state.renamePlayer(id, controller.text);
+                widget.state.renamePlayer(id, controller.text);
                 Navigator.pop(ctx);
               }
             },
@@ -265,7 +309,7 @@ class HomeScreen extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                state.renamePlayer(id, controller.text);
+                widget.state.renamePlayer(id, controller.text);
                 Navigator.pop(ctx);
               }
             },
