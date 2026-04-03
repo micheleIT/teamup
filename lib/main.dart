@@ -5,7 +5,10 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final state = AppState();
-  await state.statsService.load();
+  await Future.wait([
+    state.statsService.load(),
+    state.loadSettings(),
+  ]);
   runApp(TeamUpApp(state: state));
 }
 

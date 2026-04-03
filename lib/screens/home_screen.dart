@@ -29,7 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkForUpdate() async {
     final info = await PackageInfo.fromPlatform();
     final service = widget.updateService ?? UpdateService();
-    final result = await service.checkForUpdate(info.version);
+    final result = await service.checkForUpdate(
+      info.version,
+      includeDevVersions: widget.state.notifyDevUpdates,
+    );
 
     if (!mounted) return;
     if (!result.isUpdateAvailable) return;
@@ -38,10 +41,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final releaseUrl =
         result.releaseUrl ??
         'https://github.com/micheleIT/teamup/releases/latest';
+    final message = result.isDev
+        ? 'Dev version $version is available'
+        : 'Version $version is available';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Version $version is available'),
+        content: Text(message),
         duration: const Duration(seconds: 10),
         action: SnackBarAction(
           label: 'View release',
@@ -50,11 +56,11 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                  content: const Text(
-                    'Unable to open release page. Please check your browser settings or try again later.',
+                  const SnackBar(
+                    content: Text(
+                      'Unable to open release page. Please check your browser settings or try again later.',
+                    ),
                   ),
-                ),
                 );
               }
             }

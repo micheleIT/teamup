@@ -25,6 +25,17 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: state.setWheelEnabled,
               ),
               const Divider(),
+              const _SectionHeader('Updates'),
+              SwitchListTile(
+                secondary: const Icon(Icons.science_outlined),
+                title: const Text('Dev release notifications'),
+                subtitle: const Text(
+                  'Also notify about dev versions (e.g. 1.2.0.dev)',
+                ),
+                value: state.notifyDevUpdates,
+                onChanged: state.setNotifyDevUpdates,
+              ),
+              const Divider(),
             ],
           );
         },
