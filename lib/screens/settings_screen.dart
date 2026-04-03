@@ -24,6 +24,26 @@ class SettingsScreen extends StatelessWidget {
                 value: state.wheelEnabled,
                 onChanged: state.setWheelEnabled,
               ),
+              SwitchListTile(
+                secondary: const Icon(Icons.emoji_events_outlined),
+                title: const Text('Automatically ask for registering results'),
+                subtitle: const Text(
+                  'Ask to record the match result before shuffling new teams',
+                ),
+                value: state.autoAskForResults,
+                onChanged: state.setAutoAskForResults,
+              ),
+              const Divider(),
+              const _SectionHeader('Updates'),
+              SwitchListTile(
+                secondary: const Icon(Icons.science_outlined),
+                title: const Text('Dev release notifications'),
+                subtitle: const Text(
+                  'Also notify about dev versions (e.g. 1.2.0.dev)',
+                ),
+                value: state.notifyDevUpdates,
+                onChanged: state.setNotifyDevUpdates,
+              ),
               const Divider(),
               const _SectionHeader('Updates'),
               SwitchListTile(

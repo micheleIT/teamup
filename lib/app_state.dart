@@ -13,12 +13,14 @@ class AppState extends ChangeNotifier {
   int _teamCount = 2;
   bool _wheelEnabled = false;
   bool _notifyDevUpdates = false;
+  bool _autoAskForResults = true;
 
   List<Player> get players => List.unmodifiable(_players);
   Sport get selectedSport => _selectedSport;
   int get teamCount => _teamCount;
   bool get wheelEnabled => _wheelEnabled;
   bool get notifyDevUpdates => _notifyDevUpdates;
+  bool get autoAskForResults => _autoAskForResults;
 
   bool get canGenerate => _players.length >= _teamCount;
 
@@ -39,6 +41,11 @@ class AppState extends ChangeNotifier {
     // Persistence is fire-and-forget: the UI updates immediately while the
     // write happens asynchronously in the background.
     _saveSettings();
+  }
+
+  void setAutoAskForResults(bool value) {
+    _autoAskForResults = value;
+    notifyListeners();
   }
 
   Future<void> _saveSettings() async {
