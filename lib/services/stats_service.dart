@@ -74,7 +74,9 @@ class StatsService extends ChangeNotifier {
       return true;
     }).toList();
 
-    // Map playerId → mutable accumulators
+    // Map normalised-name → mutable accumulators.
+    // Keying by name (case-insensitive) ensures that historical records where
+    // the same player was stored under different IDs are merged into one row.
     final Map<String, _Accumulator> acc = {};
 
     for (final record in filtered) {
@@ -83,8 +85,9 @@ class StatsService extends ChangeNotifier {
         final isDraw = record.isDraw;
 
         for (final gp in team.players) {
+          final key = gp.name.toLowerCase();
           final a = acc.putIfAbsent(
-            gp.id,
+            key,
             () => _Accumulator(id: gp.id, name: gp.name),
           );
           a.name = gp.name; // keep most recent
