@@ -11,7 +11,7 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 
 ## Features
 
-- **Add & manage players** — add names on the spot, rename or remove them at any time
+- **Add & manage players** — add names on the spot, rename or remove them at any time; player names must be unique (case-insensitive)
 - **Sport presets** — Soccer ⚽, Volleyball 🏐, Basketball 🏀, or a fully custom mode
 - **Configurable team count** — pick 2 … N teams with a simple +/− stepper
 - **Fair shuffling** — players are distributed as evenly as possible across teams
@@ -109,6 +109,7 @@ lib/
 
 test/
 ├── widget_test.dart                 # Smoke test for the app widget tree
+├── app_state_test.dart              # Unit tests for player name uniqueness
 ├── teams_screen_test.dart           # Teams screen widget tests
 ├── stats_service_test.dart          # Unit tests for stats computation & period filter
 └── update_service_test.dart         # Unit tests for version comparison & update checks
@@ -124,6 +125,7 @@ flutter test
 
 The test suite covers:
 
+- **Player name uniqueness** — duplicate detection on add and rename (exact and case-insensitive)
 - **Stats computation** — wins / losses / draws aggregation, `Today` vs. `All Time` period filter, sport filter, combined filters
 - **Update checker** — semantic version comparison, dev-version detection, GitHub API integration (mocked)
 - **Widget smoke tests** — app starts and core screens render without errors

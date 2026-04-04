@@ -159,5 +159,32 @@ void main() {
       expect(alice.wins, 0);
       expect(alice.losses, 0);
     });
+
+    test(
+      'same player name with different IDs in historical records is merged',
+      () async {
+        // Simulate two old records where "Alice" was stored under a different
+        // ID (e.g. before the uniqueness fix was in place).
+        final today = DateTime.now();
+        await service.addRecord(
+          _record(playedAt: today, winnerTeamNumber: 1, p1Id: 'old-id-1'),
+        );
+        await service.addRecord(
+          _record(playedAt: today, winnerTeamNumber: 1, p1Id: 'old-id-2'),
+        );
+
+        final stats = service.computeStats();
+
+        // Must be exactly ONE entry for Alice, not two.
+        final aliceEntries = stats
+            .where((s) => s.playerName == 'Alice')
+            .toList();
+        expect(aliceEntries, hasLength(1));
+
+        // Both games must be counted.
+        expect(aliceEntries.first.gamesPlayed, 2);
+        expect(aliceEntries.first.wins, 2);
+      },
+    );
   });
 }

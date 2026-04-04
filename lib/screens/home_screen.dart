@@ -260,8 +260,13 @@ class _HomeScreenState extends State<HomeScreen> {
               labelText: 'Name',
               hintText: 'e.g. Alex',
             ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Enter a name';
+              if (!widget.state.isPlayerNameAvailable(v)) {
+                return 'Name already exists';
+              }
+              return null;
+            },
             onFieldSubmitted: (_) {
               if (formKey.currentState!.validate()) {
                 widget.state.addPlayer(controller.text);
@@ -307,8 +312,13 @@ class _HomeScreenState extends State<HomeScreen> {
             controller: controller,
             autofocus: true,
             decoration: const InputDecoration(labelText: 'Name'),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Enter a name';
+              if (!widget.state.isPlayerNameAvailable(v, excludingId: id)) {
+                return 'Name already exists';
+              }
+              return null;
+            },
             onFieldSubmitted: (_) {
               if (formKey.currentState!.validate()) {
                 widget.state.renamePlayer(id, controller.text);
