@@ -262,10 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Enter a name';
-              final trimmed = v.trim();
-              if (widget.state.players.any(
-                (p) => p.name.toLowerCase() == trimmed.toLowerCase(),
-              )) {
+              if (!widget.state.isPlayerNameAvailable(v)) {
                 return 'Name already exists';
               }
               return null;
@@ -317,12 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: const InputDecoration(labelText: 'Name'),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Enter a name';
-              final trimmed = v.trim();
-              if (widget.state.players.any(
-                (p) =>
-                    p.id != id &&
-                    p.name.toLowerCase() == trimmed.toLowerCase(),
-              )) {
+              if (!widget.state.isPlayerNameAvailable(v, excludingId: id)) {
                 return 'Name already exists';
               }
               return null;

@@ -53,14 +53,19 @@ class AppState extends ChangeNotifier {
     await prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates);
   }
 
+  /// Returns true when [name] (trimmed, case-insensitive) is not already used
+  /// by any player other than the one identified by [excludingId].
+  bool isPlayerNameAvailable(String name, {String? excludingId}) {
+    final key = name.trim().toLowerCase();
+    return !_players.any(
+      (p) => p.id != excludingId && p.name.toLowerCase() == key,
+    );
+  }
+
   bool addPlayer(String name) {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return false;
-    if (_players.any(
-      (p) => p.name.toLowerCase() == trimmed.toLowerCase(),
-    )) {
-      return false;
-    }
+    if (!isPlayerNameAvailable(trimmed)) return false;
     _players.add(
       Player(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -81,11 +86,7 @@ class AppState extends ChangeNotifier {
     if (trimmed.isEmpty) return false;
     final idx = _players.indexWhere((p) => p.id == id);
     if (idx == -1) return false;
-    if (_players.any(
-      (p) => p.id != id && p.name.toLowerCase() == trimmed.toLowerCase(),
-    )) {
-      return false;
-    }
+    if (!isPlayerNameAvailable(trimmed, excludingId: id)) return false;
     _players[idx] = _players[idx].copyWith(name: trimmed);
     notifyListeners();
     return true;
