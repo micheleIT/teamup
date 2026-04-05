@@ -5,10 +5,15 @@ name: Manual Release
 # Run workflow).  No automatic tag or push trigger.
 #
 # Required repository secrets:
-#   KEYSTORE_BASE64      – base64-encoded .jks / .keystore file
-#   KEYSTORE_PASSWORD    – keystore store password
-#   KEY_ALIAS            – key alias inside the keystore
-#   KEY_PASSWORD         – key password
+#   Android
+#     KEYSTORE_BASE64               – base64-encoded .jks / .keystore file
+#     KEYSTORE_PASSWORD             – keystore store password
+#     KEY_ALIAS                     – key alias inside the keystore
+#     KEY_PASSWORD                  – key password
+#   iOS  (requires ios/ directory committed – run `flutter create --platforms ios .` once)
+#     IOS_CERTIFICATE_BASE64        – base64-encoded .p12 distribution certificate
+#     IOS_CERTIFICATE_PASSWORD      – .p12 password
+#     IOS_PROVISIONING_PROFILE_BASE64 – base64-encoded .mobileprovision file
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -36,7 +41,8 @@ on:
 # ─────────────────────────────────────────────────────────────────────────────
 # Jobs run in this order:
 #   test  ──┬──▶  build-android  ──┐
-#            └──▶  build-web      ──┴──▶  release
+#            ├──▶  build-ios      ──┤──▶  release
+#            └──▶  build-web      ──┘
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -160,11 +166,73 @@ jobs:
           path: teamup-web-${{ inputs.version }}.zip
           retention-days: 7
 
+  # ── 2c. iOS IPA ────────────────────────────────────────────────────────────
+  build-ios:
+    name: Build iOS (IPA)
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Import the distribution certificate into a temporary keychain so
+      # Xcode can sign the build without user interaction.
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+          echo "$CERTIFICATE_BASE64" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import "$RUNNER_TEMP/cert.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      # Install the provisioning profile so Xcode picks it up automatically.
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+          echo "$PROFILE_BASE64" | base64 --decode > "$PP_PATH"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Build IPA
+        run: |
+          flutter build ipa --release \
+            --build-name="${{ inputs.version }}" \
+            --build-number="${{ inputs.build_number }}"
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp build/ios/ipa/*.ipa dist/teamup-${{ inputs.version }}.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-artifact
+          path: dist/teamup-${{ inputs.version }}.ipa
+          retention-days: 7
+
   # ── 3. GitHub Release ──────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-android, build-web]
+    needs: [build-android, build-ios, build-web]
     permissions:
       contents: write
     steps:
@@ -184,4 +252,5 @@ jobs:
           files: |
             artifacts/teamup-${{ inputs.version }}.apk
             artifacts/teamup-${{ inputs.version }}.aab
+            artifacts/teamup-${{ inputs.version }}.ipa
             artifacts/teamup-web-${{ inputs.version }}.zip
