@@ -31,7 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final service = widget.updateService ?? UpdateService();
     final result = await service.checkForUpdate(
       info.version,
-      includeDevVersions: widget.state.notifyDevUpdates,
+      includeDevVersions:
+          widget.state.notifyDevUpdates || service.isDevVersion(info.version),
     );
 
     if (!mounted) return;
