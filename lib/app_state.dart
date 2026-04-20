@@ -6,6 +6,9 @@ import 'services/stats_service.dart';
 
 class AppState extends ChangeNotifier {
   static const _prefKeyNotifyDevUpdates = 'notify_dev_updates';
+  static const _prefKeyPendingUpdateVersion = 'pending_update_version';
+  static const _prefKeyPendingUpdateUrl = 'pending_update_url';
+  static const _prefKeyPendingUpdateIsDev = 'pending_update_is_dev';
 
   final statsService = StatsService();
   final List<Player> _players = [];
@@ -14,6 +17,9 @@ class AppState extends ChangeNotifier {
   bool _wheelEnabled = false;
   bool _notifyDevUpdates = false;
   bool _autoAskForResults = true;
+  String? _pendingUpdateVersion;
+  String? _pendingUpdateUrl;
+  bool _pendingUpdateIsDev = false;
 
   List<Player> get players => List.unmodifiable(_players);
   Sport get selectedSport => _selectedSport;
@@ -21,6 +27,9 @@ class AppState extends ChangeNotifier {
   bool get wheelEnabled => _wheelEnabled;
   bool get notifyDevUpdates => _notifyDevUpdates;
   bool get autoAskForResults => _autoAskForResults;
+  String? get pendingUpdateVersion => _pendingUpdateVersion;
+  String? get pendingUpdateUrl => _pendingUpdateUrl;
+  bool get pendingUpdateIsDev => _pendingUpdateIsDev;
 
   bool get canGenerate => _players.length >= _teamCount;
 
@@ -28,6 +37,9 @@ class AppState extends ChangeNotifier {
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _notifyDevUpdates = prefs.getBool(_prefKeyNotifyDevUpdates) ?? false;
+    _pendingUpdateVersion = prefs.getString(_prefKeyPendingUpdateVersion);
+    _pendingUpdateUrl = prefs.getString(_prefKeyPendingUpdateUrl);
+    _pendingUpdateIsDev = prefs.getBool(_prefKeyPendingUpdateIsDev) ?? false;
   }
 
   void setWheelEnabled(bool value) {
@@ -48,9 +60,44 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Records that an update is available. Persists across app restarts.
+  void setPendingUpdate(String version, String? url, {bool isDev = false}) {
+    _pendingUpdateVersion = version;
+    _pendingUpdateUrl = url;
+    _pendingUpdateIsDev = isDev;
+    notifyListeners();
+    _saveSettings();
+  }
+
+  /// Clears the pending update notification (called on dismiss or view release).
+  void clearPendingUpdate() {
+    _pendingUpdateVersion = null;
+    _pendingUpdateUrl = null;
+    _pendingUpdateIsDev = false;
+    notifyListeners();
+    _saveSettings();
+  }
+
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates);
+    if (_pendingUpdateVersion != null) {
+      await Future.wait([
+        prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates),
+        prefs.setString(_prefKeyPendingUpdateVersion, _pendingUpdateVersion!),
+        if (_pendingUpdateUrl != null)
+          prefs.setString(_prefKeyPendingUpdateUrl, _pendingUpdateUrl!)
+        else
+          prefs.remove(_prefKeyPendingUpdateUrl),
+        prefs.setBool(_prefKeyPendingUpdateIsDev, _pendingUpdateIsDev),
+      ]);
+    } else {
+      await Future.wait([
+        prefs.setBool(_prefKeyNotifyDevUpdates, _notifyDevUpdates),
+        prefs.remove(_prefKeyPendingUpdateVersion),
+        prefs.remove(_prefKeyPendingUpdateUrl),
+        prefs.remove(_prefKeyPendingUpdateIsDev),
+      ]);
+    }
   }
 
   void addPlayer(String name) {

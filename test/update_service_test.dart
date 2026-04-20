@@ -117,6 +117,7 @@ void main() {
       );
       final result = await service.checkForUpdate('1.0.0');
       expect(result.isUpdateAvailable, isFalse);
+      expect(result.checkFailed, isTrue);
     });
 
     test('stable release notifies when running a dev build with the same numeric version', () async {
