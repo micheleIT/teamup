@@ -44,93 +44,103 @@ class UpdateService {
   /// (tags containing `.dev`). If both a stable and a dev update are found,
   /// the one with the higher version number is returned (stable wins a tie).
   ///
-  /// On any network or parsing error returns a result with
-  /// [isUpdateAvailable] set to `false`.
+  /// If only the dev check fails, the stable result is returned as a partial
+  /// success so a transient second-request failure does not discard an already-
+  /// found update.  On a complete failure [checkFailed] is set to `true`.
   Future<UpdateCheckResult> checkForUpdate(
     String currentVersion, {
     bool includeDevVersions = false,
   }) async {
-    try {
-      final stableResult = await _checkStableRelease(currentVersion);
-      if (!includeDevVersions) return stableResult;
+    final stableResult = await _checkStableRelease(currentVersion);
+    if (stableResult.checkFailed) return stableResult;
+    if (!includeDevVersions) return stableResult;
 
-      final devResult = await _checkLatestDevRelease(currentVersion);
+    final devResult = await _checkLatestDevRelease(currentVersion);
+    // If the dev check failed, return the stable result as a partial success
+    // rather than surfacing an error to the user.
+    if (devResult.checkFailed) return stableResult;
 
-      if (!stableResult.isUpdateAvailable && !devResult.isUpdateAvailable) {
-        return const UpdateCheckResult(isUpdateAvailable: false);
-      }
-      if (!devResult.isUpdateAvailable) return stableResult;
-      if (!stableResult.isUpdateAvailable) return devResult;
-
-      // Both available – return the higher version; stable wins a tie.
-      final stableNumeric = stableResult.latestVersion ?? '';
-      final devNumeric = _stripDevSuffix(devResult.latestVersion ?? '');
-      return isNewerVersion(devNumeric, stableNumeric) ? devResult : stableResult;
-    } catch (e) {
-      debugPrint('UpdateService: update check failed: $e');
-      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
+    if (!stableResult.isUpdateAvailable && !devResult.isUpdateAvailable) {
+      return const UpdateCheckResult(isUpdateAvailable: false);
     }
+    if (!devResult.isUpdateAvailable) return stableResult;
+    if (!stableResult.isUpdateAvailable) return devResult;
+
+    // Both available – return the higher version; stable wins a tie.
+    final stableNumeric = stableResult.latestVersion ?? '';
+    final devNumeric = _stripDevSuffix(devResult.latestVersion ?? '');
+    return isNewerVersion(devNumeric, stableNumeric) ? devResult : stableResult;
   }
 
   Future<UpdateCheckResult> _checkStableRelease(String currentVersion) async {
-    final response = await _client
-        .get(Uri.parse(_releasesApiUrl), headers: _githubHeaders)
-        .timeout(const Duration(seconds: 10));
+    try {
+      final response = await _client
+          .get(Uri.parse(_releasesApiUrl), headers: _githubHeaders)
+          .timeout(const Duration(seconds: 10));
 
-    if (response.statusCode != 200) {
-      return const UpdateCheckResult(isUpdateAvailable: false);
+      if (response.statusCode != 200) {
+        return const UpdateCheckResult(isUpdateAvailable: false);
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final tagName = data['tag_name'] as String? ?? '';
+      final latestVersion =
+          tagName.startsWith('v') ? tagName.substring(1) : tagName;
+      final releaseUrl = data['html_url'] as String?;
+
+      return UpdateCheckResult(
+        isUpdateAvailable: isNewerVersion(latestVersion, currentVersion),
+        latestVersion: latestVersion,
+        releaseUrl: releaseUrl,
+      );
+    } catch (e) {
+      debugPrint('UpdateService: stable check failed: $e');
+      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
     }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final tagName = data['tag_name'] as String? ?? '';
-    final latestVersion =
-        tagName.startsWith('v') ? tagName.substring(1) : tagName;
-    final releaseUrl = data['html_url'] as String?;
-
-    return UpdateCheckResult(
-      isUpdateAvailable: isNewerVersion(latestVersion, currentVersion),
-      latestVersion: latestVersion,
-      releaseUrl: releaseUrl,
-    );
   }
 
   Future<UpdateCheckResult> _checkLatestDevRelease(
     String currentVersion,
   ) async {
-    final response = await _client
-        .get(Uri.parse(_releasesListApiUrl), headers: _githubHeaders)
-        .timeout(const Duration(seconds: 10));
+    try {
+      final response = await _client
+          .get(Uri.parse(_releasesListApiUrl), headers: _githubHeaders)
+          .timeout(const Duration(seconds: 10));
 
-    if (response.statusCode != 200) {
-      return const UpdateCheckResult(isUpdateAvailable: false);
-    }
-
-    final releases = jsonDecode(response.body) as List<dynamic>;
-
-    UpdateCheckResult? best;
-    for (final item in releases) {
-      final release = item as Map<String, dynamic>;
-      if (release['draft'] == true) continue;
-
-      final tagName = release['tag_name'] as String? ?? '';
-      final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
-
-      if (!isDevVersion(version)) continue;
-
-      if (!isNewerVersion(version, currentVersion)) continue;
-
-      if (best == null ||
-          isNewerVersion(version, best.latestVersion ?? '')) {
-        best = UpdateCheckResult(
-          isUpdateAvailable: true,
-          latestVersion: version,
-          releaseUrl: release['html_url'] as String?,
-          isDev: true,
-        );
+      if (response.statusCode != 200) {
+        return const UpdateCheckResult(isUpdateAvailable: false);
       }
-    }
 
-    return best ?? const UpdateCheckResult(isUpdateAvailable: false);
+      final releases = jsonDecode(response.body) as List<dynamic>;
+
+      UpdateCheckResult? best;
+      for (final item in releases) {
+        final release = item as Map<String, dynamic>;
+        if (release['draft'] == true) continue;
+
+        final tagName = release['tag_name'] as String? ?? '';
+        final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
+
+        if (!isDevVersion(version)) continue;
+
+        if (!isNewerVersion(version, currentVersion)) continue;
+
+        if (best == null ||
+            isNewerVersion(version, best.latestVersion ?? '')) {
+          best = UpdateCheckResult(
+            isUpdateAvailable: true,
+            latestVersion: version,
+            releaseUrl: release['html_url'] as String?,
+            isDev: true,
+          );
+        }
+      }
+
+      return best ?? const UpdateCheckResult(isUpdateAvailable: false);
+    } catch (e) {
+      debugPrint('UpdateService: dev check failed: $e');
+      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
+    }
   }
 
   /// Returns `true` when [latest] is strictly greater than [current].
