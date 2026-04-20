@@ -12,6 +12,17 @@ import 'package:teamup/main.dart';
 import 'package:teamup/screens/home_screen.dart';
 import 'package:teamup/services/update_service.dart';
 
+/// Convenience helper – only the [version] varies between tests.
+void _setMockVersion(String version) {
+  PackageInfo.setMockInitialValues(
+    appName: 'TeamUp',
+    packageName: 'com.example.teamup',
+    version: version,
+    buildNumber: '1',
+    buildSignature: '',
+  );
+}
+
 /// Builds a [MockClient] that serves a stable release and a list of all
 /// releases (used for dev-version look-ups).
 MockClient _devClient({
@@ -49,29 +60,13 @@ void main() {
   });
 
   group('HomeScreen update notification', () {
-    setUp(() {
-      // Reset to a known stable version before each test.
-      PackageInfo.setMockInitialValues(
-        appName: 'TeamUp',
-        packageName: 'com.example.teamup',
-        version: '1.0.0',
-        buildNumber: '1',
-        buildSignature: '',
-      );
-    });
+    setUp(() => _setMockVersion('1.0.0'));
 
     testWidgets(
       'shows snackbar when a newer dev release exists and current version is a dev build '
       'even if notifyDevUpdates is false',
       (tester) async {
-        // Simulate running a dev build.
-        PackageInfo.setMockInitialValues(
-          appName: 'TeamUp',
-          packageName: 'com.example.teamup',
-          version: '0.2.3.dev',
-          buildNumber: '1',
-          buildSignature: '',
-        );
+        _setMockVersion('0.2.3.dev');
 
         final state = AppState();
         addTearDown(state.dispose);
@@ -108,14 +103,7 @@ void main() {
       'does NOT show snackbar for a dev release when current version is stable '
       'and notifyDevUpdates is false',
       (tester) async {
-        // Stable build – dev notifications must stay opt-in.
-        PackageInfo.setMockInitialValues(
-          appName: 'TeamUp',
-          packageName: 'com.example.teamup',
-          version: '0.2.3',
-          buildNumber: '1',
-          buildSignature: '',
-        );
+        _setMockVersion('0.2.3');
 
         final state = AppState();
         addTearDown(state.dispose);
