@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Result of an update availability check.
@@ -11,11 +12,16 @@ class UpdateCheckResult {
   /// Whether the available version is a dev release.
   final bool isDev;
 
+  /// `true` when the check could not complete due to a network or parse error.
+  /// Callers should not clear persisted update state when this is `true`.
+  final bool checkFailed;
+
   const UpdateCheckResult({
     required this.isUpdateAvailable,
     this.latestVersion,
     this.releaseUrl,
     this.isDev = false,
+    this.checkFailed = false,
   });
 }
 
@@ -60,78 +66,71 @@ class UpdateService {
       final stableNumeric = stableResult.latestVersion ?? '';
       final devNumeric = _stripDevSuffix(devResult.latestVersion ?? '');
       return isNewerVersion(devNumeric, stableNumeric) ? devResult : stableResult;
-    } catch (_) {
-      return const UpdateCheckResult(isUpdateAvailable: false);
+    } catch (e) {
+      debugPrint('UpdateService: update check failed: $e');
+      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
     }
   }
 
   Future<UpdateCheckResult> _checkStableRelease(String currentVersion) async {
-    try {
-      final response = await _client
-          .get(Uri.parse(_releasesApiUrl), headers: _githubHeaders)
-          .timeout(const Duration(seconds: 10));
+    final response = await _client
+        .get(Uri.parse(_releasesApiUrl), headers: _githubHeaders)
+        .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode != 200) {
-        return const UpdateCheckResult(isUpdateAvailable: false);
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final tagName = data['tag_name'] as String? ?? '';
-      final latestVersion =
-          tagName.startsWith('v') ? tagName.substring(1) : tagName;
-      final releaseUrl = data['html_url'] as String?;
-
-      return UpdateCheckResult(
-        isUpdateAvailable: isNewerVersion(latestVersion, currentVersion),
-        latestVersion: latestVersion,
-        releaseUrl: releaseUrl,
-      );
-    } catch (_) {
+    if (response.statusCode != 200) {
       return const UpdateCheckResult(isUpdateAvailable: false);
     }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final tagName = data['tag_name'] as String? ?? '';
+    final latestVersion =
+        tagName.startsWith('v') ? tagName.substring(1) : tagName;
+    final releaseUrl = data['html_url'] as String?;
+
+    return UpdateCheckResult(
+      isUpdateAvailable: isNewerVersion(latestVersion, currentVersion),
+      latestVersion: latestVersion,
+      releaseUrl: releaseUrl,
+    );
   }
 
   Future<UpdateCheckResult> _checkLatestDevRelease(
     String currentVersion,
   ) async {
-    try {
-      final response = await _client
-          .get(Uri.parse(_releasesListApiUrl), headers: _githubHeaders)
-          .timeout(const Duration(seconds: 10));
+    final response = await _client
+        .get(Uri.parse(_releasesListApiUrl), headers: _githubHeaders)
+        .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode != 200) {
-        return const UpdateCheckResult(isUpdateAvailable: false);
-      }
-
-      final releases = jsonDecode(response.body) as List<dynamic>;
-
-      UpdateCheckResult? best;
-      for (final item in releases) {
-        final release = item as Map<String, dynamic>;
-        if (release['draft'] == true) continue;
-
-        final tagName = release['tag_name'] as String? ?? '';
-        final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
-
-        if (!isDevVersion(version)) continue;
-
-        if (!isNewerVersion(version, currentVersion)) continue;
-
-        if (best == null ||
-            isNewerVersion(version, best.latestVersion ?? '')) {
-          best = UpdateCheckResult(
-            isUpdateAvailable: true,
-            latestVersion: version,
-            releaseUrl: release['html_url'] as String?,
-            isDev: true,
-          );
-        }
-      }
-
-      return best ?? const UpdateCheckResult(isUpdateAvailable: false);
-    } catch (_) {
+    if (response.statusCode != 200) {
       return const UpdateCheckResult(isUpdateAvailable: false);
     }
+
+    final releases = jsonDecode(response.body) as List<dynamic>;
+
+    UpdateCheckResult? best;
+    for (final item in releases) {
+      final release = item as Map<String, dynamic>;
+      if (release['draft'] == true) continue;
+
+      final tagName = release['tag_name'] as String? ?? '';
+      final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
+
+      if (!isDevVersion(version)) continue;
+
+      if (!isNewerVersion(version, currentVersion)) continue;
+
+      if (best == null ||
+          isNewerVersion(version, best.latestVersion ?? '')) {
+        best = UpdateCheckResult(
+          isUpdateAvailable: true,
+          latestVersion: version,
+          releaseUrl: release['html_url'] as String?,
+          isDev: true,
+        );
+      }
+    }
+
+    return best ?? const UpdateCheckResult(isUpdateAvailable: false);
   }
 
   /// Returns `true` when [latest] is strictly greater than [current].

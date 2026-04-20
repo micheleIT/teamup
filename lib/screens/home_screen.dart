@@ -36,39 +36,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (!mounted) return;
-    if (!result.isUpdateAvailable) return;
+
+    // If the check itself failed (network/parse error), keep any existing
+    // pending update banner so it survives connectivity gaps.
+    if (result.checkFailed) return;
+
+    if (!result.isUpdateAvailable) {
+      // No newer release: clear any stale pending-update banner (e.g. user
+      // has since installed the update).
+      widget.state.clearPendingUpdate();
+      return;
+    }
 
     final version = result.latestVersion ?? '';
     final releaseUrl =
         result.releaseUrl ??
         'https://github.com/micheleIT/teamup/releases/latest';
-    final message = result.isDev
-        ? 'Dev version $version is available'
-        : 'Version $version is available';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 10),
-        action: SnackBarAction(
-          label: 'View release',
-          onPressed: () async {
-            final uri = Uri.parse(releaseUrl);
-            if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Unable to open release page. Please check your browser settings or try again later.',
-                    ),
-                  ),
-                );
-              }
-            }
-          },
-        ),
-      ),
-    );
+    widget.state.setPendingUpdate(version, releaseUrl, isDev: result.isDev);
   }
 
   @override
@@ -130,6 +114,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: Column(
             children: [
+              // ── Update banner (persistent, dismissed by user) ────────────
+              if (widget.state.pendingUpdateVersion != null)
+                _UpdateBanner(state: widget.state),
+
               // ── Sport selector ──────────────────────────────────────────
               _SportSelector(state: widget.state),
               const Divider(height: 1),
@@ -406,6 +394,50 @@ class _TeamCountRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _UpdateBanner extends StatelessWidget {
+  final AppState state;
+  const _UpdateBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final version = state.pendingUpdateVersion!;
+    final url =
+        state.pendingUpdateUrl ??
+        'https://github.com/micheleIT/teamup/releases/latest';
+    final message = state.pendingUpdateIsDev
+        ? 'Dev version $version is available'
+        : 'Version $version is available';
+
+    return MaterialBanner(
+      content: Text(message),
+      leading: const Icon(Icons.system_update_outlined),
+      actions: [
+        TextButton(
+          onPressed: state.clearPendingUpdate,
+          child: const Text('Dismiss'),
+        ),
+        TextButton(
+          onPressed: () async {
+            final uri = Uri.parse(url);
+            if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+              state.clearPendingUpdate();
+            } else if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Unable to open release page. Please check your browser settings or try again later.',
+                  ),
+                ),
+              );
+            }
+          },
+          child: const Text('View release'),
+        ),
+      ],
     );
   }
 }
