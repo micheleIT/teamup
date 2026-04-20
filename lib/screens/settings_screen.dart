@@ -4,6 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../app_state.dart';
 import '../services/update_service.dart';
 
+const _kReleasesUrl =
+    'https://github.com/micheleIT/teamup/releases/latest';
+
 class SettingsScreen extends StatefulWidget {
   final AppState state;
   final UpdateService? updateService;
@@ -55,8 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result.isUpdateAvailable) {
       final version = result.latestVersion ?? '';
       final url =
-          result.releaseUrl ??
-          'https://github.com/micheleIT/teamup/releases/latest';
+          result.releaseUrl ?? _kReleasesUrl;
       widget.state.setPendingUpdate(version, url, isDev: result.isDev);
 
       if (!mounted) return;
@@ -160,10 +162,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               ListTile(
                 leading: _checkingForUpdate
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? Semantics(
+                        label: 'Checking for updates',
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
                     : const Icon(Icons.system_update_outlined),
                 title: const Text('Check for Updates'),
