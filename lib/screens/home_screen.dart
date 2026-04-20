@@ -82,7 +82,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SettingsScreen(state: widget.state),
+                    builder: (_) => SettingsScreen(
+                      state: widget.state,
+                      updateService: widget.updateService,
+                    ),
                   ),
                 ),
               ),
