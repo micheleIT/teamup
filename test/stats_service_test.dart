@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -206,9 +208,8 @@ void main() {
       await service.addRecord(_record(playedAt: today, winnerTeamNumber: 2));
 
       final json = service.exportToJson();
-      expect(json, contains('"id"'));
-      // Both records should be included
-      expect(json.split('"id"').length - 1, 2);
+      final decoded = jsonDecode(json) as List;
+      expect(decoded, hasLength(2));
     });
 
     test('exportToJson with date filter returns only matching records', () async {
@@ -220,8 +221,8 @@ void main() {
       await service.addRecord(_record(playedAt: today, winnerTeamNumber: 2));
 
       final json = service.exportToJson(since: _startOfToday);
-      // Only today's record
-      expect(json.split('"id"').length - 1, 1);
+      final decoded = jsonDecode(json) as List;
+      expect(decoded, hasLength(1));
     });
 
     test('exportToJson returns empty JSON array when no records match filter', () async {
