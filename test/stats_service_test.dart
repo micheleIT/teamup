@@ -187,4 +187,185 @@ void main() {
       },
     );
   });
+
+  // ── Import / Export ──────────────────────────────────────────────────────────
+
+  group('StatsService export / import', () {
+    late StatsService service;
+
+    setUp(() {
+      service = StatsService();
+    });
+
+    test('exportToJson with since=null exports all records', () async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final today = DateTime.now();
+      await service.addRecord(
+        _record(playedAt: yesterday, winnerTeamNumber: 1),
+      );
+      await service.addRecord(_record(playedAt: today, winnerTeamNumber: 2));
+
+      final json = service.exportToJson();
+      expect(json, contains('"id"'));
+      // Both records should be included
+      expect(json.split('"id"').length - 1, 2);
+    });
+
+    test('exportToJson with since filters to today only', () async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final today = DateTime.now();
+      await service.addRecord(
+        _record(playedAt: yesterday, winnerTeamNumber: 1),
+      );
+      await service.addRecord(_record(playedAt: today, winnerTeamNumber: 2));
+
+      final json = service.exportToJson(since: _startOfToday);
+      // Only today's record
+      expect(json.split('"id"').length - 1, 1);
+    });
+
+    test('exportToJson returns empty array when no records match since', () async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      await service.addRecord(
+        _record(playedAt: yesterday, winnerTeamNumber: 1),
+      );
+
+      final json = service.exportToJson(since: _startOfToday);
+      expect(json, '[]');
+    });
+
+    test('importFromJson with merge=false replaces all records', () async {
+      final today = DateTime.now();
+      await service.addRecord(
+        _record(playedAt: today, winnerTeamNumber: 1),
+      );
+      expect(service.records, hasLength(1));
+
+      // Build a JSON string with two new records
+      final other = StatsService();
+      final d1 = DateTime(2025, 1, 1);
+      final d2 = DateTime(2025, 1, 2);
+      await other.addRecord(
+        _record(playedAt: d1, winnerTeamNumber: 1, p1Id: 'new1', p1Name: 'Eve'),
+      );
+      await other.addRecord(
+        _record(playedAt: d2, winnerTeamNumber: 2, p1Id: 'new2', p1Name: 'Eve'),
+      );
+      final json = other.exportToJson();
+
+      await service.importFromJson(json, merge: false);
+
+      // Old record gone; two new records present
+      expect(service.records, hasLength(2));
+      expect(service.records.every((r) => r.teams.first.players.first.name == 'Eve'), isTrue);
+    });
+
+    test('importFromJson with merge=true appends new records', () async {
+      final today = DateTime.now();
+      await service.addRecord(
+        _record(playedAt: today, winnerTeamNumber: 1),
+      );
+      expect(service.records, hasLength(1));
+      final existingId = service.records.first.id;
+
+      // Export from another service with one overlapping + one new record
+      final other = StatsService();
+      // Same record (same id should be skipped)
+      await other.addRecord(service.records.first);
+      // Brand-new record
+      await other.addRecord(
+        _record(
+          playedAt: DateTime(2025, 6, 1),
+          winnerTeamNumber: 2,
+          p1Id: 'newp',
+          p1Name: 'Charlie',
+        ),
+      );
+      final json = other.exportToJson();
+
+      await service.importFromJson(json, merge: true);
+
+      // Should have original + 1 new = 2 records (duplicate skipped)
+      expect(service.records, hasLength(2));
+      expect(service.records.any((r) => r.id == existingId), isTrue);
+      expect(
+        service.records.any(
+          (r) => r.teams.first.players.first.name == 'Charlie',
+        ),
+        isTrue,
+      );
+    });
+
+    test('importFromJson with merge=true on empty service adds all records', () async {
+      final other = StatsService();
+      final d = DateTime(2025, 3, 10);
+      await other.addRecord(_record(playedAt: d, winnerTeamNumber: 1));
+      final json = other.exportToJson();
+
+      await service.importFromJson(json, merge: true);
+
+      expect(service.records, hasLength(1));
+    });
+
+    test('importFromJson persists data across reload', () async {
+      final other = StatsService();
+      await other.addRecord(
+        _record(playedAt: DateTime(2025, 4, 1), winnerTeamNumber: 1),
+      );
+      final json = other.exportToJson();
+
+      await service.importFromJson(json, merge: false);
+
+      // Reload from prefs
+      final reloaded = StatsService();
+      await reloaded.load();
+      expect(reloaded.records, hasLength(1));
+    });
+
+    test('importFromJson throws FormatException for invalid JSON', () async {
+      expect(
+        () => service.importFromJson('not json', merge: true),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('importFromJson throws FormatException when JSON is not a list', () async {
+      expect(
+        () => service.importFromJson('{"key": "value"}', merge: true),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('roundtrip: export then import restores identical records', () async {
+      final t1 = DateTime(2025, 5, 20, 10, 0);
+      final t2 = DateTime(2025, 5, 21, 14, 30);
+      await service.addRecord(
+        _record(playedAt: t1, sport: Sport.soccer, winnerTeamNumber: 1),
+      );
+      await service.addRecord(
+        _record(
+          playedAt: t2,
+          sport: Sport.basketball,
+          winnerTeamNumber: null, // draw
+        ),
+      );
+
+      final json = service.exportToJson();
+
+      final target = StatsService();
+      await target.importFromJson(json, merge: false);
+
+      expect(target.records, hasLength(2));
+
+      final soccerRecord = target.records.firstWhere(
+        (r) => r.sport == Sport.soccer,
+      );
+      expect(soccerRecord.winnerTeamNumber, 1);
+
+      final basketballRecord = target.records.firstWhere(
+        (r) => r.sport == Sport.basketball,
+      );
+      expect(basketballRecord.isDraw, isTrue);
+    });
+  });
 }
