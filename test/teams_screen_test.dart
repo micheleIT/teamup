@@ -152,5 +152,63 @@ void main() {
         expect(find.textContaining('Who won?'), findsNothing);
       },
     );
+
+    testWidgets(
+      'reshuffle shows "Reshuffle without saving" button in the record sheet',
+      (tester) async {
+        final state = _makeState();
+        addTearDown(state.dispose);
+        await tester.pumpWidget(_buildScreen(state));
+
+        // Trigger reshuffle — sheet should appear with the skip button
+        await tester.tap(find.byTooltip('Shuffle again'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Reshuffle without saving'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'tapping "Reshuffle without saving" reshuffles without recording a result',
+      (tester) async {
+        final state = _makeState();
+        addTearDown(state.dispose);
+        await tester.pumpWidget(_buildScreen(state));
+
+        // Trigger reshuffle — sheet appears
+        await tester.tap(find.byTooltip('Shuffle again'));
+        await tester.pumpAndSettle();
+
+        // Tap the skip button
+        await tester.tap(find.text('Reshuffle without saving'));
+        await tester.pumpAndSettle();
+
+        // Sheet is dismissed
+        expect(find.textContaining('Who won?'), findsNothing);
+        // No result was recorded — button is still enabled with outlined icon
+        final btn = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.emoji_events_outlined),
+        );
+        expect(btn.onPressed, isNotNull);
+        // Stats service should have no records
+        expect(state.statsService.records, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'manual "Record result" button does not show "Reshuffle without saving"',
+      (tester) async {
+        final state = _makeState();
+        addTearDown(state.dispose);
+        await tester.pumpWidget(_buildScreen(state));
+
+        // Open the sheet via the manual record button
+        await tester.tap(find.byTooltip('Record result'));
+        await tester.pumpAndSettle();
+
+        // The skip button should NOT appear here
+        expect(find.text('Reshuffle without saving'), findsNothing);
+      },
+    );
   });
 }

@@ -40,13 +40,14 @@ class _TeamsScreenState extends State<TeamsScreen> {
     });
   }
 
-  Future<void> _recordResult(BuildContext context) async {
+  Future<void> _recordResult(BuildContext context, {String? skipButtonLabel}) async {
     if (_resultRecorded) return;
     final record = await showRecordResultSheet(
       context: context,
       sport: widget.state.selectedSport,
       teams: _teams,
       allPlayers: widget.state.players,
+      skipButtonLabel: skipButtonLabel,
     );
     if (record == null) return;
     await widget.state.statsService.addRecord(record);
@@ -63,7 +64,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
 
   Future<void> _reshuffle(BuildContext context) async {
     if (widget.state.autoAskForResults && !_resultRecorded) {
-      await _recordResult(context);
+      await _recordResult(context, skipButtonLabel: 'Reshuffle without saving');
     }
     if (!context.mounted) return;
     if (widget.state.wheelEnabled) {
