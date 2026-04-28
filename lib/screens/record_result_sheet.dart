@@ -6,11 +6,16 @@ import '../models/team.dart';
 
 /// Shows a bottom sheet to record the result of a completed game.
 /// Returns the saved [GameRecord], or null if the user dismissed.
+///
+/// If [skipButtonLabel] is provided, an additional button is shown below
+/// "Save Result" that dismisses the sheet without saving (e.g. to let the
+/// user proceed with a reshuffle without recording the current pairings).
 Future<GameRecord?> showRecordResultSheet({
   required BuildContext context,
   required Sport sport,
   required List<Team> teams,
   required List<Player> allPlayers,
+  String? skipButtonLabel,
 }) {
   return showModalBottomSheet<GameRecord>(
     context: context,
@@ -18,8 +23,12 @@ Future<GameRecord?> showRecordResultSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) =>
-        _RecordResultSheet(sport: sport, teams: teams, allPlayers: allPlayers),
+    builder: (_) => _RecordResultSheet(
+      sport: sport,
+      teams: teams,
+      allPlayers: allPlayers,
+      skipButtonLabel: skipButtonLabel,
+    ),
   );
 }
 
@@ -29,11 +38,13 @@ class _RecordResultSheet extends StatefulWidget {
   final Sport sport;
   final List<Team> teams;
   final List<Player> allPlayers;
+  final String? skipButtonLabel;
 
   const _RecordResultSheet({
     required this.sport,
     required this.teams,
     required this.allPlayers,
+    this.skipButtonLabel,
   });
 
   @override
@@ -193,6 +204,17 @@ class _RecordResultSheetState extends State<_RecordResultSheet> {
               minimumSize: const Size.fromHeight(50),
             ),
           ),
+
+          if (widget.skipButtonLabel != null) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+              ),
+              child: Text(widget.skipButtonLabel!),
+            ),
+          ],
 
           const SizedBox(height: 16),
         ],
