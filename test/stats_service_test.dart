@@ -197,7 +197,7 @@ void main() {
       service = StatsService();
     });
 
-    test('exportToJson with since=null exports all records', () async {
+    test('exportToJson without date filter exports all records', () async {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final today = DateTime.now();
       await service.addRecord(
@@ -211,7 +211,7 @@ void main() {
       expect(json.split('"id"').length - 1, 2);
     });
 
-    test('exportToJson with since filters to today only', () async {
+    test('exportToJson with date filter returns only matching records', () async {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       final today = DateTime.now();
       await service.addRecord(
@@ -224,7 +224,7 @@ void main() {
       expect(json.split('"id"').length - 1, 1);
     });
 
-    test('exportToJson returns empty array when no records match since', () async {
+    test('exportToJson returns empty JSON array when no records match filter', () async {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
       await service.addRecord(
         _record(playedAt: yesterday, winnerTeamNumber: 1),
