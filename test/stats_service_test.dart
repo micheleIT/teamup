@@ -390,18 +390,6 @@ void main() {
       service = StatsService();
     });
 
-    test('stub saveToFile returns false (non-web platform)', () async {
-      // The stub implementation signals that file saving is unsupported.
-      // ignore: avoid_relative_lib_imports
-      final result =
-          await Function.apply((await _loadStub()).saveToFile, [
-                '{}',
-                'test.json',
-              ])
-              as bool;
-      expect(result, isFalse);
-    });
-
     test(
       'exportToJson produces valid JSON that can be written to / read from a file',
       () async {
@@ -492,19 +480,4 @@ void main() {
       },
     );
   });
-}
-
-// Helper to dynamically load the stub for testing
-Future<dynamic> _loadStub() async {
-  // Import the stub directly to test its behavior
-  // ignore: avoid_relative_lib_imports
-  return _StubProxy();
-}
-
-/// Proxy that calls the stub's saveToFile directly.
-class _StubProxy {
-  Future<bool> saveToFile(String content, String fileName) async {
-    // Mirrors the stub implementation: non-web always returns false
-    return false;
-  }
 }

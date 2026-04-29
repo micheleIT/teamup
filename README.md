@@ -52,7 +52,7 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 | `http` | Fetch GitHub Releases API for update checks |
 | `package_info_plus` | Read the app's current version at runtime |
 | `url_launcher` | Open release URLs in the system browser |
-| `file_picker` | Pick files for statistics import |
+| `file_picker` | Save/load statistics files (Android & web) |
 
 ### Run in the browser
 
@@ -99,9 +99,7 @@ lib/
 │   └── update_service.dart          # GitHub Releases update checker
 ├── utils/
 │   ├── team_generator.dart          # Shuffle & even-distribution logic
-│   ├── file_helper.dart             # Cross-platform file save/load facade
-│   ├── file_helper_web.dart         # Web implementation (browser download)
-│   └── file_helper_stub.dart        # Stub for non-web platforms
+│   └── file_helper.dart             # File save/load via file_picker
 ├── widgets/
 │   ├── court_background.dart        # Sport-specific court background widget
 │   └── fortune_wheel.dart           # Animated Wheel-of-Fortune widget

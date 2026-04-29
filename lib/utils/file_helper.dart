@@ -1,19 +1,33 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 
-import 'file_helper_stub.dart'
-    if (dart.library.html) 'file_helper_web.dart'
-    as platform;
-
 /// Cross-platform file save/load helpers for import/export.
+///
+/// Uses `file_picker` which works on Android, web, and desktop.
 class FileHelper {
   FileHelper._();
 
-  /// Triggers a file download with the given [content] and suggested
-  /// [fileName]. On web this creates a browser download.
-  static Future<bool> saveToFile(String content, String fileName) {
-    return platform.saveToFile(content, fileName);
+  /// Opens a save-file dialog with the given [content] and suggested
+  /// [fileName]. On web this triggers a browser download; on Android
+  /// it opens the system file-save dialog.
+  ///
+  /// Returns `true` if the file was saved successfully.
+  static Future<bool> saveToFile(String content, String fileName) async {
+    try {
+      final bytes = Uint8List.fromList(utf8.encode(content));
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save statistics',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
+      );
+      return result != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Opens a file picker for the user to select a JSON file to import.
