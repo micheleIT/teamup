@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -50,6 +52,74 @@ class StatsService extends ChangeNotifier {
   /// Delete a game record by id.
   Future<void> deleteRecord(String id) async {
     _records.removeWhere((r) => r.id == id);
+    await _persist();
+    notifyListeners();
+  }
+
+  // ── Import / Export ─────────────────────────────────────────────────────────
+
+  /// Returns a JSON string containing game records.
+  /// When [since] is provided only records played on or after that date are
+  /// included (e.g. pass the start of today to export only today's games).
+  String exportToJson({DateTime? since}) {
+    final toExport = since == null
+        ? List<GameRecord>.of(_records)
+        : _records.where((r) => !r.playedAt.isBefore(since)).toList();
+    return jsonEncode(toExport.map((r) => r.toJson()).toList());
+  }
+
+  /// Import game records from a JSON string produced by [exportToJson].
+  ///
+  /// * [merge] == `true`  — new records are appended; records whose [id]
+  ///   already exists locally are silently skipped.
+  /// * [merge] == `false` — all existing records are replaced by the
+  ///   imported ones.
+  ///
+  /// Throws a [FormatException] when [json] is not valid JSON or does not
+  /// contain a top-level list of record objects.
+  Future<void> importFromJson(String json, {required bool merge}) async {
+    final decoded = jsonDecode(json);
+    if (decoded is! List) {
+      throw const FormatException(
+        'Invalid statistics file: expected a JSON array of game records.',
+      );
+    }
+
+    final imported = <GameRecord>[];
+    for (var i = 0; i < decoded.length; i++) {
+      final entry = decoded[i];
+      if (entry is! Map) {
+        throw FormatException(
+          'Invalid statistics file: expected a game record object at index $i.',
+        );
+      }
+
+      try {
+        imported.add(
+          GameRecord.fromJson(Map<String, dynamic>.from(entry)),
+        );
+      } on FormatException catch (e) {
+        throw FormatException(
+          'Invalid statistics file: invalid game record at index $i: ${e.message}',
+        );
+      } catch (_) {
+        throw FormatException(
+          'Invalid statistics file: invalid game record at index $i.',
+        );
+      }
+    }
+    if (merge) {
+      final existingIds = _records.map((r) => r.id).toSet();
+      for (final record in imported) {
+        if (existingIds.add(record.id)) {
+          _records.add(record);
+        }
+      }
+    } else {
+      _records
+        ..clear()
+        ..addAll(imported);
+    }
     await _persist();
     notifyListeners();
   }

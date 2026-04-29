@@ -1,10 +1,12 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/player_stats.dart';
 import '../models/game_record.dart';
 import '../models/sport.dart';
 import '../services/stats_service.dart';
+import '../utils/file_helper.dart';
 
 enum _StatsPeriod { today, allTime }
 
@@ -71,6 +73,73 @@ class _StatsScreenState extends State<StatsScreen>
                   tooltip: 'Game history',
                   onPressed: () => _showHistory(context, records),
                 ),
+              PopupMenuButton<_ImportExportAction>(
+                tooltip: 'Import / Export',
+                icon: const Icon(Icons.more_vert),
+                onSelected: (action) {
+                  switch (action) {
+                    case _ImportExportAction.exportToday:
+                      _showExportDialog(context, today: true);
+                      break;
+                    case _ImportExportAction.exportAll:
+                      _showExportDialog(context, today: false);
+                      break;
+                    case _ImportExportAction.import:
+                      _showImportDialog(context);
+                      break;
+                    case _ImportExportAction.saveToFile:
+                      _saveToFile(context);
+                      break;
+                    case _ImportExportAction.loadFromFile:
+                      _loadFromFile(context);
+                      break;
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: _ImportExportAction.exportToday,
+                    child: ListTile(
+                      leading: Icon(Icons.upload),
+                      title: Text("Export today's games"),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _ImportExportAction.exportAll,
+                    child: ListTile(
+                      leading: Icon(Icons.upload_file),
+                      title: Text('Export all games'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: _ImportExportAction.saveToFile,
+                    child: ListTile(
+                      leading: Icon(Icons.save_alt),
+                      title: Text('Save to file'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _ImportExportAction.loadFromFile,
+                    child: ListTile(
+                      leading: Icon(Icons.folder_open),
+                      title: Text('Load from file'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: _ImportExportAction.import,
+                    child: ListTile(
+                      leading: Icon(Icons.paste),
+                      title: Text('Import from clipboard'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           body: Column(
@@ -136,6 +205,264 @@ class _StatsScreenState extends State<StatsScreen>
       ),
     );
   }
+
+  void _showExportDialog(BuildContext context, {required bool today}) {
+    DateTime? since;
+    if (today) {
+      final now = DateTime.now();
+      since = DateTime(now.year, now.month, now.day);
+    }
+    final json = widget.statsService.exportToJson(since: since);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(today ? "Export today's games" : 'Export all games'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Copy the JSON below and save it to a file. You can later '
+                'import it on any device.',
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 200),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    ctx,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(10),
+                  child: SelectableText(
+                    json,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: json));
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Copied to clipboard')),
+                );
+                Navigator.pop(ctx);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImportDialog(BuildContext context) {
+    final controller = TextEditingController();
+    var mergeMode = true; // true = merge, false = replace
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Import games'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Paste the JSON data you exported from another device.',
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '[{"id": "...", ...}]',
+                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                ),
+                const SizedBox(height: 12),
+                Text('Import mode', style: Theme.of(ctx).textTheme.labelMedium),
+                const SizedBox(height: 4),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Merge'),
+                      icon: Icon(Icons.merge),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Replace'),
+                      icon: Icon(Icons.swap_horiz),
+                    ),
+                  ],
+                  selected: {mergeMode},
+                  onSelectionChanged: (s) =>
+                      setDialogState(() => mergeMode = s.first),
+                ),
+                if (!mergeMode) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '⚠ Replace mode will delete all existing game records.',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(ctx).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('Import'),
+              onPressed: () async {
+                final text = controller.text.trim();
+                if (text.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please paste JSON data first'),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await widget.statsService.importFromJson(
+                    text,
+                    merge: mergeMode,
+                  );
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Statistics imported successfully'),
+                      ),
+                    );
+                  }
+                } on FormatException catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Import failed: ${e.message}')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveToFile(BuildContext context) async {
+    final json = widget.statsService.exportToJson();
+    final now = DateTime.now();
+    final fileName =
+        'teamup_stats_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.json';
+    final ok = await FileHelper.saveToFile(json, fileName);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'File saved: $fileName'
+              : 'Save to file is not supported on this platform. Use Export + Copy instead.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadFromFile(BuildContext context) async {
+    try {
+      final content = await FileHelper.loadFromFile();
+      if (content == null) return; // user cancelled
+      if (!context.mounted) return;
+
+      // Show merge/replace dialog before importing
+      final mergeMode = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Import mode'),
+          content: const Text(
+            'Merge keeps your existing records and adds new ones.\n'
+            'Replace deletes all existing records first.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Replace'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Merge'),
+            ),
+          ],
+        ),
+      );
+      if (mergeMode == null || !context.mounted) return;
+
+      // Normalise content: trim whitespace and strip UTF-8 BOM if present.
+      var normalised = content.trim();
+      if (normalised.startsWith('\uFEFF')) {
+        normalised = normalised.substring(1);
+      }
+      await widget.statsService.importFromJson(normalised, merge: mergeMode);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Statistics imported successfully')),
+      );
+    } on FormatException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: ${e.message}')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load file: $e')));
+    }
+  }
+}
+
+// ── Import/export action enum ─────────────────────────────────────────────────
+
+enum _ImportExportAction {
+  exportToday,
+  exportAll,
+  import,
+  saveToFile,
+  loadFromFile,
 }
 
 // ── Stats tab ─────────────────────────────────────────────────────────────────
