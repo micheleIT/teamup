@@ -20,6 +20,7 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 - **Record game results** — log wins, losses, and draws right after a match; each result can only be recorded once per team arrangement
 - **Player statistics** — view aggregated per-player stats (games played, wins, losses, draws) with a **Today / All Time** toggle and per-sport breakdown
 - **Import / Export statistics** — export game records as JSON (today's games or all-time) to a clipboard-ready string; import on any device and choose to **merge** (add new records, skip duplicates) or **replace** (overwrite all local data)
+- **Save / Load to file** — save statistics as a `.json` file download or load a previously saved file via the system file picker (available from the Statistics screen menu)
 - **In-app update notifications** — background check against GitHub Releases; opt into dev-version notifications in Settings
 - **Settings screen** — toggle Wheel of Fortune mode, auto-ask for results, and dev-release notifications
 - **Light & dark theme** — follows the system preference automatically
@@ -51,6 +52,7 @@ Built with **Flutter 3.41.6** · runs as an **Android app** and a **browser PWA*
 | `http` | Fetch GitHub Releases API for update checks |
 | `package_info_plus` | Read the app's current version at runtime |
 | `url_launcher` | Open release URLs in the system browser |
+| `file_picker` | Pick files for statistics import |
 
 ### Run in the browser
 
@@ -96,7 +98,10 @@ lib/
 │   ├── stats_service.dart           # Persist game records & compute player stats
 │   └── update_service.dart          # GitHub Releases update checker
 ├── utils/
-│   └── team_generator.dart          # Shuffle & even-distribution logic
+│   ├── team_generator.dart          # Shuffle & even-distribution logic
+│   ├── file_helper.dart             # Cross-platform file save/load facade
+│   ├── file_helper_web.dart         # Web implementation (browser download)
+│   └── file_helper_stub.dart        # Stub for non-web platforms
 ├── widgets/
 │   ├── court_background.dart        # Sport-specific court background widget
 │   └── fortune_wheel.dart           # Animated Wheel-of-Fortune widget
@@ -128,7 +133,7 @@ The test suite covers:
 
 - **Player name uniqueness** — duplicate detection on add and rename (exact and case-insensitive)
 - **Stats computation** — wins / losses / draws aggregation, `Today` vs. `All Time` period filter, sport filter, combined filters
-- **Import / Export** — `exportToJson` (all-time and today-only), `importFromJson` (merge mode, replace mode, roundtrip, persistence, error handling)
+- **Import / Export** — `exportToJson` (all-time and today-only), `importFromJson` (merge mode, replace mode, roundtrip, persistence, error handling), file-based roundtrip (UTF-8 encoding, BOM handling, truncated files, empty imports, idempotent merge)
 - **Update checker** — semantic version comparison, dev-version detection, GitHub API integration (mocked)
 - **Widget smoke tests** — app starts and core screens render without errors
 

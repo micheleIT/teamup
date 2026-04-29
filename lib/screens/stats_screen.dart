@@ -6,6 +6,7 @@ import '../models/player_stats.dart';
 import '../models/game_record.dart';
 import '../models/sport.dart';
 import '../services/stats_service.dart';
+import '../utils/file_helper.dart';
 
 enum _StatsPeriod { today, allTime }
 
@@ -83,6 +84,10 @@ class _StatsScreenState extends State<StatsScreen>
                       _showExportDialog(context, today: false);
                     case _ImportExportAction.import:
                       _showImportDialog(context);
+                    case _ImportExportAction.saveToFile:
+                      _saveToFile(context);
+                    case _ImportExportAction.loadFromFile:
+                      _loadFromFile(context);
                   }
                 },
                 itemBuilder: (_) => const [
@@ -104,10 +109,27 @@ class _StatsScreenState extends State<StatsScreen>
                   ),
                   PopupMenuDivider(),
                   PopupMenuItem(
+                    value: _ImportExportAction.saveToFile,
+                    child: ListTile(
+                      leading: Icon(Icons.save_alt),
+                      title: Text('Save to file'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _ImportExportAction.loadFromFile,
+                    child: ListTile(
+                      leading: Icon(Icons.folder_open),
+                      title: Text('Load from file'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuDivider(),
+                  PopupMenuItem(
                     value: _ImportExportAction.import,
                     child: ListTile(
-                      leading: Icon(Icons.download),
-                      title: Text('Import games'),
+                      leading: Icon(Icons.paste),
+                      title: Text('Import from clipboard'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -276,10 +298,7 @@ class _StatsScreenState extends State<StatsScreen>
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Import mode',
-                  style: Theme.of(ctx).textTheme.labelMedium,
-                ),
+                Text('Import mode', style: Theme.of(ctx).textTheme.labelMedium),
                 const SizedBox(height: 4),
                 SegmentedButton<bool>(
                   segments: const [
@@ -322,7 +341,9 @@ class _StatsScreenState extends State<StatsScreen>
                 final text = controller.text.trim();
                 if (text.isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Please paste JSON data first')),
+                    const SnackBar(
+                      content: Text('Please paste JSON data first'),
+                    ),
                   );
                   return;
                 }
@@ -353,11 +374,86 @@ class _StatsScreenState extends State<StatsScreen>
       ),
     );
   }
+
+  Future<void> _saveToFile(BuildContext context) async {
+    final json = widget.statsService.exportToJson();
+    final now = DateTime.now();
+    final fileName =
+        'teamup_stats_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.json';
+    final ok = await FileHelper.saveToFile(json, fileName);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'File saved: $fileName'
+              : 'Save to file is not supported on this platform. Use Export + Copy instead.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadFromFile(BuildContext context) async {
+    try {
+      final content = await FileHelper.loadFromFile();
+      if (content == null) return; // user cancelled
+      if (!context.mounted) return;
+
+      // Show merge/replace dialog before importing
+      final mergeMode = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Import mode'),
+          content: const Text(
+            'Merge keeps your existing records and adds new ones.\n'
+            'Replace deletes all existing records first.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Replace'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Merge'),
+            ),
+          ],
+        ),
+      );
+      if (mergeMode == null || !context.mounted) return;
+
+      await widget.statsService.importFromJson(content, merge: mergeMode);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Statistics imported successfully')),
+      );
+    } on FormatException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: ${e.message}')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load file: $e')));
+    }
+  }
 }
 
 // ── Import/export action enum ─────────────────────────────────────────────────
 
-enum _ImportExportAction { exportToday, exportAll, import }
+enum _ImportExportAction {
+  exportToday,
+  exportAll,
+  import,
+  saveToFile,
+  loadFromFile,
+}
 
 // ── Stats tab ─────────────────────────────────────────────────────────────────
 
