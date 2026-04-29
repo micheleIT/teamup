@@ -80,14 +80,19 @@ class _StatsScreenState extends State<StatsScreen>
                   switch (action) {
                     case _ImportExportAction.exportToday:
                       _showExportDialog(context, today: true);
+                      break;
                     case _ImportExportAction.exportAll:
                       _showExportDialog(context, today: false);
+                      break;
                     case _ImportExportAction.import:
                       _showImportDialog(context);
+                      break;
                     case _ImportExportAction.saveToFile:
                       _saveToFile(context);
+                      break;
                     case _ImportExportAction.loadFromFile:
                       _loadFromFile(context);
+                      break;
                   }
                 },
                 itemBuilder: (_) => const [
