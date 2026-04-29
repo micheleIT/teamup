@@ -91,7 +91,7 @@ class StatsService extends ChangeNotifier {
     if (merge) {
       final existingIds = _records.map((r) => r.id).toSet();
       for (final record in imported) {
-        if (!existingIds.contains(record.id)) {
+        if (existingIds.add(record.id)) {
           _records.add(record);
         }
       }
