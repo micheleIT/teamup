@@ -431,7 +431,12 @@ class _StatsScreenState extends State<StatsScreen>
       );
       if (mergeMode == null || !context.mounted) return;
 
-      await widget.statsService.importFromJson(content, merge: mergeMode);
+      // Normalise content: trim whitespace and strip UTF-8 BOM if present.
+      var normalised = content.trim();
+      if (normalised.startsWith('\uFEFF')) {
+        normalised = normalised.substring(1);
+      }
+      await widget.statsService.importFromJson(normalised, merge: mergeMode);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Statistics imported successfully')),
