@@ -84,10 +84,30 @@ class StatsService extends ChangeNotifier {
         'Invalid statistics file: expected a JSON array of game records.',
       );
     }
-    final imported = decoded
-        .map((e) => GameRecord.fromJson(e as Map<String, dynamic>))
-        .toList();
 
+    final imported = <GameRecord>[];
+    for (var i = 0; i < decoded.length; i++) {
+      final entry = decoded[i];
+      if (entry is! Map) {
+        throw FormatException(
+          'Invalid statistics file: expected a game record object at index $i.',
+        );
+      }
+
+      try {
+        imported.add(
+          GameRecord.fromJson(Map<String, dynamic>.from(entry)),
+        );
+      } on FormatException catch (e) {
+        throw FormatException(
+          'Invalid statistics file: invalid game record at index $i: ${e.message}',
+        );
+      } catch (_) {
+        throw FormatException(
+          'Invalid statistics file: invalid game record at index $i.',
+        );
+      }
+    }
     if (merge) {
       final existingIds = _records.map((r) => r.id).toSet();
       for (final record in imported) {
