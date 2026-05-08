@@ -17,7 +17,7 @@ class FileHelper {
   static Future<bool> saveToFile(String content, String fileName) async {
     try {
       final bytes = Uint8List.fromList(utf8.encode(content));
-      final result = await FilePicker.platform.saveFile(
+      final result = await FilePicker.saveFile(
         dialogTitle: 'Save statistics',
         fileName: fileName,
         type: FileType.custom,
@@ -33,7 +33,7 @@ class FileHelper {
   /// Opens a file picker for the user to select a JSON file to import.
   /// Returns the file content as a string, or `null` if cancelled.
   static Future<String?> loadFromFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
       withData: true,
