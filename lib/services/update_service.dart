@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Result of an update availability check.
@@ -11,11 +12,16 @@ class UpdateCheckResult {
   /// Whether the available version is a dev release.
   final bool isDev;
 
+  /// `true` when the check could not complete due to a network or parse error.
+  /// Callers should not clear persisted update state when this is `true`.
+  final bool checkFailed;
+
   const UpdateCheckResult({
     required this.isUpdateAvailable,
     this.latestVersion,
     this.releaseUrl,
     this.isDev = false,
+    this.checkFailed = false,
   });
 }
 
@@ -38,31 +44,32 @@ class UpdateService {
   /// (tags containing `.dev`). If both a stable and a dev update are found,
   /// the one with the higher version number is returned (stable wins a tie).
   ///
-  /// On any network or parsing error returns a result with
-  /// [isUpdateAvailable] set to `false`.
+  /// If only the dev check fails, the stable result is returned as a partial
+  /// success so a transient second-request failure does not discard an already-
+  /// found update.  On a complete failure [checkFailed] is set to `true`.
   Future<UpdateCheckResult> checkForUpdate(
     String currentVersion, {
     bool includeDevVersions = false,
   }) async {
-    try {
-      final stableResult = await _checkStableRelease(currentVersion);
-      if (!includeDevVersions) return stableResult;
+    final stableResult = await _checkStableRelease(currentVersion);
+    if (stableResult.checkFailed) return stableResult;
+    if (!includeDevVersions) return stableResult;
 
-      final devResult = await _checkLatestDevRelease(currentVersion);
+    final devResult = await _checkLatestDevRelease(currentVersion);
+    // If the dev check failed, return the stable result as a partial success
+    // rather than surfacing an error to the user.
+    if (devResult.checkFailed) return stableResult;
 
-      if (!stableResult.isUpdateAvailable && !devResult.isUpdateAvailable) {
-        return const UpdateCheckResult(isUpdateAvailable: false);
-      }
-      if (!devResult.isUpdateAvailable) return stableResult;
-      if (!stableResult.isUpdateAvailable) return devResult;
-
-      // Both available – return the higher version; stable wins a tie.
-      final stableNumeric = stableResult.latestVersion ?? '';
-      final devNumeric = _stripDevSuffix(devResult.latestVersion ?? '');
-      return isNewerVersion(devNumeric, stableNumeric) ? devResult : stableResult;
-    } catch (_) {
+    if (!stableResult.isUpdateAvailable && !devResult.isUpdateAvailable) {
       return const UpdateCheckResult(isUpdateAvailable: false);
     }
+    if (!devResult.isUpdateAvailable) return stableResult;
+    if (!stableResult.isUpdateAvailable) return devResult;
+
+    // Both available – return the higher version; stable wins a tie.
+    final stableNumeric = stableResult.latestVersion ?? '';
+    final devNumeric = _stripDevSuffix(devResult.latestVersion ?? '');
+    return isNewerVersion(devNumeric, stableNumeric) ? devResult : stableResult;
   }
 
   Future<UpdateCheckResult> _checkStableRelease(String currentVersion) async {
@@ -86,8 +93,9 @@ class UpdateService {
         latestVersion: latestVersion,
         releaseUrl: releaseUrl,
       );
-    } catch (_) {
-      return const UpdateCheckResult(isUpdateAvailable: false);
+    } catch (e) {
+      debugPrint('UpdateService: stable check failed: $e');
+      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
     }
   }
 
@@ -115,11 +123,10 @@ class UpdateService {
 
         if (!isDevVersion(version)) continue;
 
-        final numericVersion = _stripDevSuffix(version);
-        if (!isNewerVersion(numericVersion, currentVersion)) continue;
+        if (!isNewerVersion(version, currentVersion)) continue;
 
         if (best == null ||
-            isNewerVersion(numericVersion, _stripDevSuffix(best.latestVersion ?? ''))) {
+            isNewerVersion(version, best.latestVersion ?? '')) {
           best = UpdateCheckResult(
             isUpdateAvailable: true,
             latestVersion: version,
@@ -130,15 +137,18 @@ class UpdateService {
       }
 
       return best ?? const UpdateCheckResult(isUpdateAvailable: false);
-    } catch (_) {
-      return const UpdateCheckResult(isUpdateAvailable: false);
+    } catch (e) {
+      debugPrint('UpdateService: dev check failed: $e');
+      return const UpdateCheckResult(isUpdateAvailable: false, checkFailed: true);
     }
   }
 
   /// Returns `true` when [latest] is strictly greater than [current].
   ///
-  /// Both strings are expected to be in `MAJOR.MINOR.PATCH` format.
+  /// Both strings are expected to be in `MAJOR.MINOR.PATCH[.dev]` format.
   /// Non-numeric segments are treated as 0.
+  /// When numeric parts are equal, a stable release is considered newer than
+  /// a dev release (e.g. `1.0.0` is newer than `1.0.0.dev`).
   bool isNewerVersion(String latest, String current) {
     final l = _parseParts(latest);
     final c = _parseParts(current);
@@ -146,7 +156,8 @@ class UpdateService {
       if (l[i] > c[i]) return true;
       if (l[i] < c[i]) return false;
     }
-    return false;
+    // Numeric parts are equal: a stable release supersedes a dev release.
+    return !isDevVersion(latest) && isDevVersion(current);
   }
 
   /// Returns `true` if [version] contains a `.dev` suffix.

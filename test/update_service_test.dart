@@ -36,6 +36,14 @@ void main() {
     test('handles missing patch segment', () {
       expect(service.isNewerVersion('1.1', '1.0.0'), isTrue);
     });
+
+    test('stable release is newer than dev with same numeric version', () {
+      expect(service.isNewerVersion('0.2.1', '0.2.1.dev'), isTrue);
+    });
+
+    test('dev release is not newer than dev with same numeric version', () {
+      expect(service.isNewerVersion('0.2.1.dev', '0.2.1.dev'), isFalse);
+    });
   });
 
   group('UpdateService.isDevVersion', () {
@@ -109,6 +117,26 @@ void main() {
       );
       final result = await service.checkForUpdate('1.0.0');
       expect(result.isUpdateAvailable, isFalse);
+      expect(result.checkFailed, isTrue);
+    });
+
+    test('checkFailed is false on non-200 response (no stable releases)', () async {
+      final service = UpdateService(
+        client: MockClient((_) async => http.Response('Not Found', 404)),
+      );
+      final result = await service.checkForUpdate('1.0.0');
+      expect(result.isUpdateAvailable, isFalse);
+      expect(result.checkFailed, isFalse);
+    });
+
+    test('stable release notifies when running a dev build with the same numeric version', () async {
+      final service = UpdateService(
+        client: stableClient('v0.2.1', 'https://github.com/test/repo/releases/v0.2.1'),
+      );
+      final result = await service.checkForUpdate('0.2.1.dev');
+      expect(result.isUpdateAvailable, isTrue);
+      expect(result.latestVersion, '0.2.1');
+      expect(result.isDev, isFalse);
     });
   });
 
@@ -221,6 +249,41 @@ void main() {
       );
       final result = await service.checkForUpdate('1.0.0');
       expect(result.isUpdateAvailable, isFalse);
+    });
+
+    test('does not show update when already on the same dev version', () async {
+      final service = UpdateService(
+        client: devClient(
+          stableTag: 'v0.2.0',
+          devReleases: [
+            {'tag_name': 'v0.2.1.dev', 'html_url': 'https://github.com/test/releases/v0.2.1.dev', 'draft': false},
+          ],
+        ),
+      );
+      final result = await service.checkForUpdate('0.2.1.dev', includeDevVersions: true);
+      expect(result.isUpdateAvailable, isFalse);
+    });
+
+    test('returns stable result when dev check fails with a network error', () async {
+      int callCount = 0;
+      final service = UpdateService(
+        client: MockClient((request) async {
+          callCount++;
+          if (request.url.path.endsWith('/releases/latest')) {
+            return http.Response(
+              jsonEncode({'tag_name': 'v2.0.0', 'html_url': 'https://github.com/test/releases/v2.0.0'}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          throw Exception('network error on dev check');
+        }),
+      );
+      final result = await service.checkForUpdate('1.0.0', includeDevVersions: true);
+      expect(result.isUpdateAvailable, isTrue);
+      expect(result.latestVersion, '2.0.0');
+      expect(result.isDev, isFalse);
+      expect(result.checkFailed, isFalse);
     });
   });
 }
